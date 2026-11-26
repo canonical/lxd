@@ -219,6 +219,20 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  defaultdesc: randomly assigned
 		//  shortdesc: Name of the interface inside the host
 		"host_name": validate.IsAny,
+
+		// lxdmeta:generate(entities=device-nic-p2p; group=device-conf; key=peer)
+		// Pair this NIC with a `p2p` NIC on another instance. The value is `<instance_name>:<device_name>`.
+		// Both devices must reference each other, and both instances must be in the same project and on the same cluster member.
+		// The peers are connected by a private, host-isolated bridge that carries untagged traffic and 802.1Q VLANs.
+		// LXD installs a local-in drop rule on the bridge so instance traffic is not delivered to the host network stack.
+		// Multiple peer links can be configured between the same two instances; each device pair gets its own private bridge.
+		// The host-side bridge name is derived only from a LXD-generated link ID that is shared by both devices, and each side's host port name is generated randomly by LXD, so instance configuration cannot influence host networking. LXD stores the link ID in `volatile.<device>.peer.link_id` and the port name in `volatile.<device>.host_name`. This makes the feature safe to use from restricted projects.
+		// This option cannot be used with `host_name`, `mtu`, `queue.tx.length`, host routes or host-side traffic limits.
+		// ---
+		//  type: string
+		//  managed: no
+		//  shortdesc: Peer instance and device to connect to
+		"peer": validate.IsAny,
 		// lxdmeta:generate(entities=device-nic-bridged; group=device-conf; key=limits.ingress)
 		// Specify the limit in bit/s. Various suffixes are supported (see {ref}`instances-limit-units`).
 		// ---

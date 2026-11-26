@@ -106,7 +106,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 
 	// Profiles can be applied to any instance type, so just use instancetype.Any type for validation so that
 	// instance type specific validation checks are not performed.
-	err = instance.ValidDevices(s, p, instancetype.Any, deviceConfig.NewDevices(req.Devices), nil)
+	err = instance.ValidDevices(s, p, instancetype.Any, "", deviceConfig.NewDevices(req.Devices), nil)
 	if err != nil {
 		return err
 	}

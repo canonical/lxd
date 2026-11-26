@@ -1276,6 +1276,15 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 	}
 
 	if strings.HasPrefix(key, ConfigVolatilePrefix) {
+		// Internal state for a peered p2p NIC. The link ID identifies the device pair and
+		// is used to derive the bridge name; the host port name is stored in the regular
+		// volatile host_name key. Neither value is trusted for host interface actions
+		// without an ownership marker check.
+		switch {
+		case strings.HasSuffix(key, ".peer.link_id"):
+			return validate.IsAny, nil
+		}
+
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.hwaddr)
 		// The original MAC that was used when moving a physical device into an instance.
 		// ---

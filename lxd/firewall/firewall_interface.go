@@ -27,4 +27,7 @@ type Firewall interface {
 
 	InstanceSetupNetPrio(projectName string, instanceName string, deviceName string, netPrio uint32) error
 	InstanceClearNetPrio(projectName string, instanceName string, deviceName string) error
+
+	BridgeSetupLocalFilter(bridgeName string) error
+	BridgeClearLocalFilter(bridgeName string) error
 }

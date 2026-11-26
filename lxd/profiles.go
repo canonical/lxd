@@ -402,7 +402,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// At this point we don't know the instance type, so just use instancetype.Any type for validation.
-	err = instance.ValidDevices(s, *p, instancetype.Any, deviceConfig.NewDevices(req.Devices), nil)
+	err = instance.ValidDevices(s, *p, instancetype.Any, "", deviceConfig.NewDevices(req.Devices), nil)
 	if err != nil {
 		return response.BadRequest(err)
 	}

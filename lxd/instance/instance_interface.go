@@ -77,6 +77,7 @@ const PowerStateStopped = "STOPPED"
 
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
+	Name() string
 	Project() api.Project
 	Type() instancetype.Type
 	Architecture() int

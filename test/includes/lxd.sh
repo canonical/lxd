@@ -372,6 +372,58 @@ create_public_cluster_link() {
     lxc query --request POST /1.0/cluster/links --data "{\"name\":\"${link_name}\",\"type\":\"public\",\"fingerprint\":\"${link_fingerprint}\"}" > /dev/null
 }
 
+# p2pPeerBridgeName returns the private bridge name used by a peered p2p NIC.
+p2pPeerBridgeName() {
+    local instance="$1"
+    local device="$2"
+    local linkID iface alias
+
+    linkID=$(lxc config get "${instance}" "volatile.${device}.peer.link_id")
+    if [ -z "${linkID}" ]; then
+        return 1
+    fi
+
+    for iface in /sys/class/net/*; do
+        alias=$(cat "${iface}/ifalias" 2>/dev/null || true)
+        if [ "${alias}" = "lxd-peer-bridge:${linkID}" ]; then
+            basename "${iface}"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# p2pPeerBridgeSecure verifies a private peer bridge has no local VLAN membership
+# and a local-in drop rule.
+p2pPeerBridgeSecure() {
+    local bridgeName="$1"
+    local vlanInfo nftInfo ebtablesInfo
+
+    vlanInfo=$(bridge vlan show dev "${bridgeName}")
+    if grep -qE "^${bridgeName}[[:space:]]" <<< "${vlanInfo}"; then
+        echo "private bridge local port has VLAN membership"
+        return 1
+    fi
+
+    if command -v nft >/dev/null 2>&1; then
+        nftInfo=$(nft list chain bridge lxd "in.peer.${bridgeName}" 2>/dev/null || true)
+        if grep -q "meta ibrname \"${bridgeName}\" drop" <<< "${nftInfo}"; then
+            return 0
+        fi
+    fi
+
+    if command -v ebtables >/dev/null 2>&1; then
+        ebtablesInfo=$(ebtables -L INPUT --Lx 2>/dev/null || true)
+        if grep -q -- "--logical-in ${bridgeName} -j DROP" <<< "${ebtablesInfo}"; then
+            return 0
+        fi
+    fi
+
+    echo "private bridge ${bridgeName} has no local-in drop rule"
+    return 1
+}
+
 # waitInstanceReady: waits for the instance to be ready (processes count > 0).
 waitInstanceReady() {
     local instName="${1}"

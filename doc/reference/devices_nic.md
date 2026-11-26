@@ -343,6 +343,10 @@ You can select this NIC type only through the `nictype` option.
 
 A `p2p` NIC creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
 
+A `p2p` NIC can also be peered with a `p2p` NIC on another instance. The two instances must be in the same project and on the same cluster member. The peers are connected by a private bridge that carries untagged traffic and 802.1Q VLANs, so instances can run multiple private VLANs across the link. The bridge has no host addresses, its host-side local port is not a member of any VLAN, and LXD installs a local-in drop rule on the bridge, so instance traffic is not delivered to the host network stack.
+
+The host-side bridge name is derived only from a link ID that LXD generates randomly for each device pair, and each side's host port name is generated randomly by LXD. Instance, project and device names do not influence them, and the host-side configuration is fixed by LXD. LXD stores the link ID in `volatile.<device>.peer.link_id` and the port name in `volatile.<device>.host_name`. This means the feature can be used safely from restricted projects: restricted projects do not allow setting or changing volatile keys, and instance configuration cannot rename, reconfigure or delete a host interface. A peered `p2p` NIC is allowed even when {config:option}`project-restricted:restricted.devices.nic` is `managed`, because it does not attach to a host network; a `p2p` NIC that does not set `peer` is still refused. LXD also verifies an ownership marker on the bridge and ports before reusing or removing them.
+
 #### Device options
 
 NIC devices of type `p2p` have the following device options:
@@ -360,6 +364,21 @@ Add a `p2p` network device to an instance using `nictype`:
     lxc config device add <instance_name> <device_name> nic nictype=p2p
 
 Adding a `p2p` network device to an instance using a managed network is not possible.
+
+##### Peered `p2p` NICs
+
+To connect two instances, add a `p2p` NIC to each instance and set the `peer` option on both devices to the other instance and device:
+
+    lxc config device add c1 p2p0 nic nictype=p2p name=eth1 peer=c2:p2p0
+    lxc config device add c2 p2p0 nic nictype=p2p name=eth1 peer=c1:p2p0
+
+The `peer` value uses the `<instance_name>:<device_name>` format. Both devices must reference each other. The peer instance must already exist when the first device is added. Either side can be added first; mutual validation is enforced when the instances start. Both instances must be in the same project and on the same cluster member. The instances can be containers, virtual machines, or one of each.
+
+Multiple peer links can be configured between the same two instances; each device pair uses its own private bridge.
+
+The link carries untagged traffic and tagged 802.1Q VLANs. VLAN 1 is used as the untagged (native) VLAN on the link: frames tagged with VLAN 1 are treated as untagged, so VLAN 1 cannot be used as a tagged VLAN. Use VLANs 2-4094 for tagged traffic. To use VLANs, create VLAN interfaces inside the instances in the usual way; no VLAN configuration is required on the device. The private bridge is retained while the pair exists. It is removed when the device is removed, or when the `peer` option is unset and the instance is next started or stopped.
+
+The `peer` option cannot be combined with `host_name`, `mtu`, `queue.tx.length`, `ipv4.routes`, `ipv6.routes`, or `limits.*`. The host-side interfaces are configured entirely by LXD so that instance configuration cannot influence host networking. The peer relationship is not supported for ephemeral instances, and it cannot be changed while either instance is running. To remove a peered device, stop both instances, unset the `peer` option on both devices, then remove the devices. Deleting an instance is allowed even while another instance still references it; the surviving device's peer reference is left dangling and must be updated before that instance can start again. If the surviving instance is still running, its link is left in place, and the bridge is removed together with that instance's device. Renaming an instance is blocked while it is peered.
 
 See {ref}`instances-configure-devices` for more information.
 

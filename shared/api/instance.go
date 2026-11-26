@@ -384,15 +384,28 @@ type ConfigKeyPolicy struct {
 
 	// RemoveVolatile indicates whether to remove all volatile keys (keys with "volatile." prefix).
 	RemoveVolatile bool
+
+	// RemoveVolatileSuffixes is a list of suffixes of volatile keys to remove. It is used for
+	// per-device volatile keys, whose full names are not known in advance.
+	RemoveVolatileSuffixes []string
 }
 
 // Apply applies the policy transformations to config.
-// It removes keys in Remove, optionally removes volatile keys, and preserves Immutable keys.
+// It removes keys in Remove and volatile keys matching RemoveVolatileSuffixes, optionally
+// removes all volatile keys, and preserves Immutable keys.
 // If immutableSource is nil, immutable keys are preserved from config itself.
 // If immutableSource is non-nil, immutable keys are preserved from immutableSource.
 func (p ConfigKeyPolicy) Apply(config map[string]string, immutableSource map[string]string) {
 	for _, key := range p.Remove {
 		delete(config, key)
+	}
+
+	for _, suffix := range p.RemoveVolatileSuffixes {
+		for key := range config {
+			if strings.HasPrefix(key, "volatile.") && strings.HasSuffix(key, suffix) {
+				delete(config, key)
+			}
+		}
 	}
 
 	if p.RemoveVolatile {
@@ -430,11 +443,17 @@ func (p ConfigKeyPolicy) Apply(config map[string]string, immutableSource map[str
 // InstanceCreateConfigKeyPolicy is used for preparing config for new instance creation.
 var InstanceCreateConfigKeyPolicy = ConfigKeyPolicy{
 	Remove: []string{"volatile.last_state.power"},
+	// A peer link ID identifies a device pair on this host. It must not be inherited by a
+	// new instance, which would join the source pair's bridge.
+	RemoveVolatileSuffixes: []string{".peer.link_id"},
 }
 
 // InstanceRefreshConfigKeyPolicy is used for preserving target-only keys during refresh.
 var InstanceRefreshConfigKeyPolicy = ConfigKeyPolicy{
 	Remove: []string{"volatile.apply_template"},
+	// A peer link ID belongs to the target pair, not to the source, so a refresh must not
+	// carry the source instance's ID (for example when refreshing into another project).
+	RemoveVolatileSuffixes: []string{".peer.link_id"},
 	Immutable: []string{
 		"volatile.idmap.base",
 		"volatile.idmap.current",

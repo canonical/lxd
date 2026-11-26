@@ -2192,6 +2192,9 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		//
 		// - When set to `block`, this option prevents using all network devices.
 		// - When set to `managed`, this option allows using network devices only if `network=` is set.
+		//   The only exception is a `p2p` network device that sets `peer`: a peered `p2p` NIC does not
+		//   attach to a host network, because it connects two instances in the project through a private
+		//   bridge owned by LXD. A `p2p` NIC that does not set `peer` is still refused.
 		// - When set to `allow`, there is no restriction on which network devices can be used.
 		// ---
 		//  type: string

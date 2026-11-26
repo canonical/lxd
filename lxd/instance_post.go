@@ -1230,7 +1230,7 @@ func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst in
 		}
 
 		return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, sourceProject, inst.Name(), updateReq, inst.LocalConfig())
+			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, sourceProject, inst.Name(), updateReq, inst.LocalConfig(), true)
 		})
 	}
 

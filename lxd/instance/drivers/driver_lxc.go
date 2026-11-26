@@ -165,7 +165,7 @@ func lxcCreate(ctx context.Context, s *state.State, args db.InstanceArgs, p api.
 			return nil, nil, fmt.Errorf("Invalid config: %w", err)
 		}
 
-		err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
+		err = instance.ValidDevices(s, d.project, d.Type(), d.Name(), d.localDevices, d.expandedDevices)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid devices: %w", err)
 		}
@@ -3601,6 +3601,13 @@ func (d *lxc) Rename(ctx context.Context, newName string, applyTemplateTrigger b
 		return err
 	}
 
+	if !d.IsSnapshot() {
+		err = d.validatePeerRename()
+		if err != nil {
+			return err
+		}
+	}
+
 	if d.IsRunning() {
 		return errors.New("Renaming of running instance not allowed")
 	}
@@ -3837,7 +3844,7 @@ func (d *lxc) Update(ctx context.Context, args db.InstanceArgs, actionType insta
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(d.state, d.project, d.Type(), args.Devices, nil)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), d.Name(), args.Devices, nil)
 		if err != nil {
 			return fmt.Errorf("Invalid devices: %w", err)
 		}

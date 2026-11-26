@@ -186,6 +186,14 @@ table {{.family}} {{.namespace}} {
 }
 `))
 
+// nftablesBridgeLocalFilter defines the local-in drop for a private peer bridge.
+var nftablesBridgeLocalFilter = template.Must(template.New("nftablesBridgeLocalFilter").Parse(`
+add table bridge {{.namespace}}
+add chain bridge {{.namespace}} {{.chainName}} { type filter hook input priority -300 ; policy accept ; }
+flush chain bridge {{.namespace}} {{.chainName}}
+add rule bridge {{.namespace}} {{.chainName}} meta ibrname "{{.bridgeName}}" drop
+`))
+
 // nftablesInstanceBridgeFilter defines the rules needed for MAC, IPv4 and IPv6 bridge security filtering.
 // To prevent instances from using IPs that are different from their assigned IPs we use ARP and NDP filtering
 // to prevent neighbour advertisements that are not allowed. However in order for DHCPv4 & DHCPv6 to work back to
