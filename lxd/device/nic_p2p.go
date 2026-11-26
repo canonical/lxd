@@ -608,17 +608,16 @@ func (d *nicP2P) peerLinkID(peer *nicP2PPeer) (string, error) {
 	localVolatileKey := "volatile." + d.name + ".peer.link_id"
 	localLinkID := localInst.LocalConfig()[localVolatileKey]
 
+	// Confirm that the devices still reference each other before publishing either ID.
+	if localInst.LocalDevices()[d.name]["peer"] != d.config["peer"] || peerInst.LocalDevices()[peer.Device]["peer"] != localInst.Name()+":"+d.name {
+		return "", errors.New("Peer devices no longer reference each other")
+	}
+
 	if localLinkID != "" && peerLinkID != "" && localLinkID != peerLinkID {
 		return "", errors.New("Peer link state is inconsistent; remove and re-add both peer devices")
 	}
 
-	// A local link ID is only ever created by publishing it to both devices. If the
-	// peer has no link ID, the local value belongs to a previous pairing and must not
-	// be reused, otherwise two different peer relationships could share a bridge.
-	if localLinkID != "" && peerLinkID == "" {
-		return "", fmt.Errorf("Peer link state for device %q on instance %q is missing; remove and re-add both peer devices", peer.Device, peer.Instance)
-	}
-
+	// A recreated endpoint has no ID. Reuse the survivor's ID in either start order.
 	linkID := localLinkID
 	if linkID == "" {
 		linkID = peerLinkID

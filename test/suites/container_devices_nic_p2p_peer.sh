@@ -243,8 +243,33 @@ test_container_devices_nic_p2p_peer() {
   [ -n "$(p2pPeerBridgeName "${ct2}" eth1)" ]
   [ -n "$(p2pPeerBridgeName "${ct2}" eth2)" ]
 
-  # Unsetting the peer option and stopping the device removes the leftover link state.
   lxc stop "${ct2}"
+
+  sub_test "Relink a recreated endpoint in either start order"
+  local retainedID first second
+  retainedID=$(lxc config get "${ct2}" volatile.eth1.peer.link_id)
+  [ -n "${retainedID}" ]
+  for first in "${ct2}" "${ct1}"; do
+    lxc init testimage "${ct1}"
+    lxc config device add "${ct1}" eth1 nic nictype=p2p name=eth1 peer="${ct2}:eth1"
+    lxc config device add "${ct1}" eth2 nic nictype=p2p name=eth2 peer="${ct2}:eth2"
+    second="${ct2}"
+    if [ "${first}" = "${ct2}" ]; then
+      second="${ct1}"
+    fi
+
+    lxc start "${first}"
+    lxc start "${second}"
+    [ "$(lxc config get "${ct1}" volatile.eth1.peer.link_id)" = "${retainedID}" ]
+    [ "$(lxc config get "${ct2}" volatile.eth1.peer.link_id)" = "${retainedID}" ]
+    lxc exec -T -n "${ct1}" -- ip addr add "${subnet1}.1/24" dev eth1
+    lxc exec -T -n "${ct2}" -- ip addr add "${subnet1}.2/24" dev eth1
+    lxc exec -T -n "${ct1}" -- ping -nc2 -W1 "${subnet1}.2"
+    lxc delete -f "${ct1}"
+    lxc stop "${ct2}"
+  done
+
+  # Unsetting the peer option and stopping the device removes the leftover link state.
   lxc config device set "${ct2}" eth1 peer ""
   lxc config device set "${ct2}" eth2 peer ""
   lxc start "${ct2}"
