@@ -16,19 +16,19 @@ To configure authentication with Entra ID, follow the steps below.
 We assumed that LXD is initialized and accessible over HTTPS on port 8443 (see {ref}`server-expose` for instructions).
 It is also assumed that you have access to an Entra ID tenant.
 
-1. In your Entra ID tenant, go to `Identity > Applications > App registrations` in the left panel.
+1. In your Entra ID tenant, go to {guilabel}`Identity` > {guilabel}`Applications` > {guilabel}`App registrations` in the left panel.
 
     ```{figure} /images/auth/entra-id/1-app-registrations.png
     Entra ID App registrations
     ```
 
-1. Click `+ New registration`. Then choose a name for the application (for example `LXD`).
+1. Click {guilabel}`+ New registration`. Then choose a name for the application (for example `LXD`).
 
     ```{figure} /images/auth/entra-id/2-app-name.png
     Entra ID set application name
     ```
 
-1. Under `Redirect URI (optional)`, select `Public client/native (mobile & desktop)` and type:
+1. Under {guilabel}`Redirect URI (optional)`, select {guilabel}`Public client/native (mobile & desktop)` and type:
 
        https://<your-LXD-hostname>/oidc/callback
 
@@ -36,51 +36,51 @@ It is also assumed that you have access to an Entra ID tenant.
     Entra ID set redirection URI
     ```
 
-1. Click `Register`.
+1. Click {guilabel}`Register`.
 
-1. In the configuration page for your new application, go to `Authentication` in the `Manage` menu.
+1. In the configuration page for your new application, go to {guilabel}`Authentication` in the {guilabel}`Manage` menu.
 
     ```{figure} /images/auth/entra-id/4-authentication.png
     Entra ID authentication
     ```
 
-1. Scroll down to `Advanced settings`. Under `Allow public client flows`, toggle `Yes` and click `Save`.
+1. Scroll down to {guilabel}`Advanced settings`. Under {guilabel}`Allow public client flows`, toggle {guilabel}`Yes` and click {guilabel}`Save`.
 
     ```{figure} /images/auth/entra-id/5-public-client-flows.png
     Entra ID enable public client flows
     ```
 
-1. In the configuration page for your new application, go to `API permissions` in the `Manage` menu.
+1. In the configuration page for your new application, go to {guilabel}`API permissions` in the {guilabel}`Manage` menu.
 
     ```{figure} /images/auth/entra-id/6-api-permissions.png
     Entra ID API permissions
     ```
 
-1. Go to `Configured permissions` and click `+ Add a permission`.
+1. Go to {guilabel}`Configured permissions` and click {guilabel}`+ Add a permission`.
 
     ```{figure} /images/auth/entra-id/7-add-a-permission.png
     Entra ID add a permission
     ```
 
-1. Click `Microsoft Graph` in the right panel.
+1. Click {guilabel}`Microsoft Graph` in the right panel.
 
     ```{figure} /images/auth/entra-id/8-graph-api.png
     Entra ID Graph API permissions
     ```
 
-1. Click `Delegated permissions`.
+1. Click {guilabel}`Delegated permissions`.
 
     ```{figure} /images/auth/entra-id/9-delegated-permissions.png
     Entra ID Graph API delegated permissions
     ```
 
-1. Select all `OpenId permissions`, then click `Add permissions`.
+1. Select all {guilabel}`OpenId permissions`, then click {guilabel}`Add permissions`.
 
     ```{figure} /images/auth/entra-id/10-openid-permissions.png
     Entra ID OpenID permissions
     ```
 
-1. Above the `Manage` menu, go to `Overview` and copy the `Application (client) ID`.
+1. Above the {guilabel}`Manage` menu, go to {guilabel}`Overview` and copy the {guilabel}`Application (client) ID`.
 
     ```{figure} /images/auth/entra-id/11-client-id.png
     Entra ID copy client ID
@@ -90,7 +90,7 @@ It is also assumed that you have access to an Entra ID tenant.
 
        lxc config set oidc.client.id <your-client-id>
 
-1. While still in `Overview`, click `Endpoints` and copy the URL under `OpenID Connect metadata document`.
+1. While still in {guilabel}`Overview`, click {guilabel}`Endpoints` and copy the URL under {guilabel}`OpenID Connect metadata document`.
 
     ```{figure} /images/auth/entra-id/12-discovery-url.png
     Entra ID tenant discovery URL
@@ -107,7 +107,7 @@ It is also assumed that you have access to an Entra ID tenant.
        lxc config set oidc.issuer "$(curl <URL that you copied> | jq -r .issuer)"
 
 You can now navigate to the LXD UI in your browser.
-When you click `Login with SSO`, you will be redirected to Entra ID to authenticate.
+When you click {guilabel}`Login with SSO`, you will be redirected to Entra ID to authenticate.
 
 In the terminal, add this LXD server as a remote by running:
 
