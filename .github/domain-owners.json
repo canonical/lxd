@@ -45,7 +45,8 @@
       "description": "Governs role-based access control, identity providers, OIDC integration, and client certificates.",
       "owners": [
         "markylaing",
-        "MusicDin"
+        "MusicDin",
+        "IsypMykhailo"
       ]
     },
     {
@@ -90,7 +91,8 @@
       "description": "Command-line interface and associated command tools.",
       "owners": [
         "MusicDin",
-        "nmezhenskyi"
+        "nmezhenskyi",
+        "IsypMykhailo"
       ]
     },
     {
@@ -99,7 +101,8 @@
       "description": "Public and internal REST API endpoints and schemas.",
       "owners": [
         "markylaing",
-        "tomponline"
+        "tomponline",
+        "IsypMykhailo"
       ]
     }
   ]
