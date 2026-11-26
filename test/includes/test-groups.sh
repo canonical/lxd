@@ -152,6 +152,8 @@ readonly test_group_network=(
     "container_devices_nic_ipvlan"
     "container_devices_nic_macvlan"
     "container_devices_nic_p2p"
+    "container_devices_nic_p2p_peer"
+    "container_devices_nic_p2p_peer_vm"
     "container_devices_nic_physical"
     "container_devices_nic_routed"
     "container_devices_nic_sriov"
