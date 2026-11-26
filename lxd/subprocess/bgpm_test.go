@@ -3,16 +3,23 @@
 package subprocess
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"io"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"go.yaml.in/yaml/v2"
+
+	"github.com/canonical/lxd/lxd/linux"
 )
 
 func TestSignalHandling(t *testing.T) {
@@ -408,5 +415,212 @@ func TestImportOldFormat(t *testing.T) {
 	err = imp.Stop()
 	if err != nil {
 		t.Error("Failed stopping process imported from old-format file: ", err)
+	}
+}
+
+// TestStopKillsProcessGroup checks that Stop on an imported process kills both the
+// process group leader and any forked children holding inherited listening sockets,
+// and waits for them to exit so the socket can be re-bound immediately.
+func TestStopKillsProcessGroup(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("Failed listening on TCP socket: ", err)
+	}
+
+	addr := ln.Addr().String()
+	tcpLn, ok := ln.(*net.TCPListener)
+	if !ok {
+		_ = ln.Close()
+		t.Fatal("Expected TCP listener")
+	}
+
+	sockFile, err := tcpLn.File()
+	if err != nil {
+		_ = ln.Close()
+		t.Fatal("Failed duplicating listener FD: ", err)
+	}
+
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		_ = sockFile.Close()
+		_ = ln.Close()
+		t.Fatal("Failed creating pipe: ", err)
+	}
+
+	defer func() { _ = pr.Close() }()
+
+	// Spawn a shell that forks a child inheriting the listening socket FD and prints the child's PID.
+	p := NewProcessWithFds("sh", []string{"-c", "sleep 30 & echo $!; wait"}, nil, pw, nil)
+	p.closeFds = true
+
+	err = p.StartWithFiles(context.Background(), []*os.File{sockFile})
+	_ = sockFile.Close()
+	_ = ln.Close()
+	if err != nil {
+		t.Fatal("Failed starting process with socket FD: ", err)
+	}
+
+	t.Cleanup(func() { _ = p.Stop() })
+
+	reader := bufio.NewReader(pr)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatal("Failed reading child PID: ", err)
+	}
+
+	childPID, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil || childPID <= 0 {
+		t.Fatalf("Invalid child PID %q: %v", line, err)
+	}
+
+	t.Cleanup(func() { _ = syscall.Kill(childPID, syscall.SIGKILL) })
+
+	// Sanity check: the listening socket is currently held by the process group.
+	busyLn, err := net.Listen("tcp", addr)
+	if err == nil {
+		_ = busyLn.Close()
+		t.Fatalf("Expected %s to be in use while process group is alive", addr)
+	}
+
+	// Stop via ImportProcess (the same unmonitored path used by dnsmasq.Kill).
+	path := savePidFile(t, p, nil)
+	imp, err := ImportProcess(path)
+	if err != nil {
+		t.Fatal("Failed importing process: ", err)
+	}
+
+	err = imp.Stop()
+	if err != nil {
+		t.Fatal("Failed stopping imported process: ", err)
+	}
+
+	// The forked child must already be gone (no orphaned process holding the socket).
+	err = syscall.Kill(childPID, syscall.Signal(0))
+	if !errors.Is(err, syscall.ESRCH) {
+		t.Errorf("Expected child PID %d to be gone (ESRCH), got: %v", childPID, err)
+	}
+
+	// Re-binding the address must succeed immediately with no sleep.
+	reboundLn, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Errorf("Failed immediately re-binding %s after Stop: %v", addr, err)
+	} else {
+		_ = reboundLn.Close()
+	}
+}
+
+// TestImportOldFormatDoesNotKillProcessGroup checks that legacy PID files without
+// StartTime/BootID identity metadata fall back to single-PID killing rather than
+// signaling the entire process group.
+func TestImportOldFormatDoesNotKillProcessGroup(t *testing.T) {
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatal("Failed creating pipe: ", err)
+	}
+
+	defer func() { _ = pr.Close() }()
+
+	p := NewProcessWithFds("sh", []string{"-c", "sleep 30 & echo $!; wait"}, nil, pw, nil)
+	p.closeFds = true
+
+	err = p.Start(context.Background())
+	if err != nil {
+		t.Fatal("Failed starting process: ", err)
+	}
+
+	t.Cleanup(func() { _ = p.Stop() })
+
+	reader := bufio.NewReader(pr)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatal("Failed reading child PID: ", err)
+	}
+
+	childPID, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil || childPID <= 0 {
+		t.Fatalf("Invalid child PID %q: %v", line, err)
+	}
+
+	t.Cleanup(func() { _ = syscall.Kill(childPID, syscall.SIGKILL) })
+
+	path := savePidFile(t, p, func(saved *Process) {
+		saved.StartTime = 0
+		saved.BootID = ""
+	})
+
+	imp, err := ImportProcess(path)
+	if err != nil {
+		t.Fatal("Failed importing legacy process: ", err)
+	}
+
+	err = imp.Stop()
+	if err != nil {
+		t.Fatal("Failed stopping legacy process: ", err)
+	}
+
+	// The leader must have exited, while its child must not have been killed via PGID.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = p.Wait(ctx)
+	if err == nil || errors.Is(err, context.DeadlineExceeded) {
+		t.Error("Expected leader process to exit after Stop: ", err)
+	}
+
+	err = syscall.Kill(childPID, syscall.Signal(0))
+	if err != nil {
+		t.Errorf("Expected child PID %d to remain alive for legacy unverified import, got: %v", childPID, err)
+	}
+}
+
+// TestStopZombieDoesNotTimeout checks that Stop returns promptly when a killed
+// process group leaves an unreaped zombie rather than timing out waiting on kill(-pgid, 0).
+func TestStopZombieDoesNotTimeout(t *testing.T) {
+	cmd := exec.Command("sleep", "30")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	err := cmd.Start()
+	if err != nil {
+		t.Fatal("Failed starting unreaped process: ", err)
+	}
+
+	// Reap only during test cleanup so the process remains a zombie after Stop kills it.
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+
+	startTime, err := linux.ProcessStartTime(cmd.Process.Pid)
+	if err != nil {
+		t.Fatal("Failed reading start time: ", err)
+	}
+
+	bootID, err := linux.CurrentBootID()
+	if err != nil {
+		t.Fatal("Failed reading boot ID: ", err)
+	}
+
+	p := &Process{
+		Name:      "sleep",
+		PID:       cmd.Process.Pid,
+		BootID:    bootID,
+		StartTime: startTime,
+	}
+
+	path := savePidFile(t, p, nil)
+	imp, err := ImportProcess(path)
+	if err != nil {
+		t.Fatal("Failed importing unreaped process: ", err)
+	}
+
+	start := time.Now()
+	err = imp.Stop()
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("Stop failed on unreaped zombie process after %v: %v", elapsed, err)
+	}
+
+	if elapsed > 2*time.Second {
+		t.Errorf("Stop took too long (%v) on unreaped zombie process", elapsed)
 	}
 }
