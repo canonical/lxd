@@ -5,9 +5,12 @@ install_microceph() {
   local channel="${1}"
   # SNAP_CACHE_DIR is expected to be in the environment if set
 
-  if [ -e test/includes/snap.sh ]; then
+  if ! declare -F install_snap >/dev/null && [ -e test/includes/snap.sh ]; then
       # shellcheck disable=SC1091
       . test/includes/snap.sh
+  fi
+
+  if declare -F install_snap >/dev/null; then
       install_snap snapd latest/beta
       install_snap core24 latest/candidate
       install_snap core26 latest/candidate
@@ -187,7 +190,7 @@ setup_microceph() {
   local osd_count="${2:-1}"
   # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
   # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
-  local channel="${3:-tentacle/stable}"
+  local channel="${3:-${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}}"
 
   install_microceph "${channel}"
   configure_microceph "${disk}" "${osd_count}"

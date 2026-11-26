@@ -4,6 +4,7 @@
 helpers_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 . "${helpers_dir}/net.sh"
 . "${helpers_dir}/snap.sh"
+. "${helpers_dir}/setup-microceph.sh"
 unset helpers_dir
 
 # waitSnapdSeed: wait for snapd to be seeded and installed/refreshed.
@@ -298,68 +299,6 @@ install_deps() (
         fi
     fi
 )
-
-# install_microceph: install MicroCeph snap from the channel specified by
-# MICROCEPH_SNAP_CHANNEL. Defaults to tentacle/stable.
-# XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
-# Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
-install_microceph() (
-    # Wait for snapd seeding
-    waitSnapdSeed
-
-    if snap list microceph 2>/dev/null; then
-        snap refresh microceph --channel="${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}" --cohort=+
-    else
-        snap install microceph --channel="${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}" --cohort=+
-    fi
-)
-
-# configure_microceph: prepare MicroCeph for use by LXD.
-configure_microceph() {
-    if [ -z "${CEPH_DISK}" ]; then
-        echo "Missing disk for use with MicroCeph" >&2
-        return 1
-    fi
-
-    if [ ! -b "${CEPH_DISK}" ]; then
-        echo "${CEPH_DISK} is not a block device" >&2
-        return 1
-    fi
-
-    if microceph status; then
-        return 0
-    fi
-
-    microceph cluster bootstrap
-    microceph.ceph config set global mon_allow_pool_size_one true
-    microceph.ceph config set global mon_allow_pool_delete true
-    microceph.ceph config set global osd_pool_default_size 1
-    microceph.ceph config set global osd_memory_target 939524096
-    microceph.ceph osd crush rule rm replicated_rule
-    microceph.ceph osd crush rule create-replicated replicated default osd
-    for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
-        microceph.ceph osd set "${flag}"
-    done
-
-    microceph disk add --wipe "${CEPH_DISK}"
-
-    microceph enable rgw
-    microceph.ceph osd pool create cephfs_meta 32
-    microceph.ceph osd pool create cephfs_data 32
-    microceph.ceph fs new cephfs cephfs_meta cephfs_data
-    microceph.ceph fs ls
-    sleep 30
-    microceph.ceph status
-    # Wait until there are no more "unknowns" pgs
-    for _ in $(seq 60); do
-      if microceph.ceph pg stat | grep -wF unknown; then
-        sleep 1
-      else
-        break
-      fi
-    done
-    microceph.ceph status
-}
 
 # install_ovn: install OVN packages or MicroOVN snap.
 install_ovn() (
