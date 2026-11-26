@@ -3915,3 +3915,12 @@ To test this extension please follow the instructions below:
    ```bash
    lxc launch ubuntu:26.04 m1 --microvm
    ```
+
+(extension-instance-nic-p2p-peer)=
+## `instance_nic_p2p_peer`
+
+This adds the `peer` option to `p2p` NIC devices. It connects two instances in the same project and on the same cluster member with a private, host-isolated bridge.
+
+The value is `<instance_name>:<device_name>`. Both device configs must reference each other. Multiple peer links can connect the same two instances, each with its own private bridge. The bridge carries untagged traffic and 802.1Q VLANs, has no host addresses, its host-side local port is excluded from all VLANs, and LXD installs a local-in drop rule on the bridge.
+
+The host-side bridge name is derived only from a LXD-generated link ID that is shared by both devices, and each side's host port name is generated randomly by LXD. LXD stores the link ID in `volatile.<device>.peer.link_id` and the port name in `volatile.<device>.host_name`. Instance, project and device names cannot influence host networking, so the feature is safe to use from restricted projects. LXD verifies an ownership marker before reusing or removing a host interface.
