@@ -413,6 +413,35 @@ func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName str
 	return nil
 }
 
+// BridgeSetupLocalFilter drops all frames delivered to the local port of a private bridge.
+func (d Nftables) BridgeSetupLocalFilter(bridgeName string) error {
+	chainLabel := "peer" + nftablesChainSeparator + bridgeName
+	chainName := "in" + nftablesChainSeparator + chainLabel
+
+	// Apply the table, chain, flush and drop rule in one nft transaction. This is
+	// idempotent: add table/add chain succeed when they already exist. The chain
+	// priority is lower than the instance bridge filter chains so the local-in drop
+	// is evaluated before any per-device accept rule.
+	tplFields := map[string]any{
+		"namespace":  nftablesNamespace,
+		"chainName":  chainName,
+		"bridgeName": bridgeName,
+	}
+
+	err := d.applyNftConfigRaw(nftablesBridgeLocalFilter, tplFields)
+	if err != nil {
+		return fmt.Errorf("Failed applying nftables local-in drop to chain %q: %w", chainName, err)
+	}
+
+	return nil
+}
+
+// BridgeClearLocalFilter removes the local-port drop for a private bridge.
+func (d Nftables) BridgeClearLocalFilter(bridgeName string) error {
+	chainLabel := "peer" + nftablesChainSeparator + bridgeName
+	return d.removeChains([]string{"bridge"}, chainLabel, "in")
+}
+
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
@@ -528,6 +557,22 @@ func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]an
 
 	config := &strings.Builder{}
 	err = nftablesCommonTable.Execute(config, tplFields)
+	if err != nil {
+		return fmt.Errorf("Failed running %q template: %w", tpl.Name(), err)
+	}
+
+	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
+	if err != nil {
+		return fmt.Errorf("Failed apply nftables config: %w", err)
+	}
+
+	return nil
+}
+
+// applyNftConfigRaw applies a standalone nftables config template that is not wrapped in a table block.
+func (d Nftables) applyNftConfigRaw(tpl *template.Template, tplFields map[string]any) error {
+	config := &strings.Builder{}
+	err := tpl.Execute(config, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed running %q template: %w", tpl.Name(), err)
 	}
