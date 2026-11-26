@@ -34,8 +34,13 @@ func (r *ProtocolLXD) GetAuthGroup(groupName string) (*api.AuthGroup, string, er
 		return nil, "", err
 	}
 
+	groupURL := api.NewURL().Path("auth", "groups", groupName)
+	if r.HasExtension("image_alias_types") {
+		groupURL = groupURL.WithQuery("image_alias_types", "1")
+	}
+
 	group := api.AuthGroup{}
-	etag, err := r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "groups", groupName).String(), nil, "", &group)
+	etag, err := r.queryStruct(http.MethodGet, groupURL.String(), nil, "", &group)
 	if err != nil {
 		return nil, "", err
 	}
@@ -50,8 +55,13 @@ func (r *ProtocolLXD) GetAuthGroups() ([]api.AuthGroup, error) {
 		return nil, err
 	}
 
+	groupsURL := api.NewURL().Path("auth", "groups").WithQuery("recursion", "1")
+	if r.HasExtension("image_alias_types") {
+		groupsURL = groupsURL.WithQuery("image_alias_types", "1")
+	}
+
 	var groups []api.AuthGroup
-	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "groups").WithQuery("recursion", "1").String(), nil, "", &groups)
+	_, err = r.queryStruct(http.MethodGet, groupsURL.String(), nil, "", &groups)
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -532,4 +533,31 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 
 func TestContainerTestSuite(t *testing.T) {
 	suite.Run(t, new(containerTestSuite))
+}
+
+func TestValidateInstanceImageType(t *testing.T) {
+	tests := []struct {
+		name         string
+		imageType    string
+		instanceType instancetype.Type
+		compatible   bool
+	}{
+		{"container image for microVM", "container", instancetype.MicroVM, true},
+		{"legacy microVM image for microVM", "microvm", instancetype.MicroVM, true},
+		{"legacy microVM image for container", "microvm", instancetype.Container, true},
+		{"VM image for microVM", "virtual-machine", instancetype.MicroVM, false},
+		{"container image for VM", "container", instancetype.VM, false},
+		{"VM image for VM", "virtual-machine", instancetype.VM, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateInstanceImageType(tt.imageType, tt.instanceType)
+			if tt.compatible {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "does not match instance type")
+			}
+		})
+	}
 }

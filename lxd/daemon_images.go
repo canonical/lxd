@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/operations"
@@ -46,6 +47,9 @@ type ImageDownloadArgs struct {
 	Budget            int64
 	SourceProjectName string
 	UserRequested     bool
+
+	// Fingerprint pins a resolved local image and skips alias resolution.
+	Fingerprint string
 }
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
@@ -154,7 +158,25 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			alias = info.Fingerprint
 		}
 
+		if args.Type != "" {
+			instanceType, err := instancetype.New(args.Type)
+			if err != nil {
+				return nil, err
+			}
+
+			err = validateInstanceImageType(info.Type, instanceType)
+			if err != nil {
+				return nil, api.StatusErrorf(http.StatusBadRequest, "%w", err)
+			}
+		}
+
 		// Ensure the resolved fingerprint is valid.
+		err = validateImageFingerprint(fp)
+		if err != nil {
+			return nil, err
+		}
+	} else if args.Fingerprint != "" {
+		fp = args.Fingerprint
 		err = validateImageFingerprint(fp)
 		if err != nil {
 			return nil, err
@@ -164,7 +186,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check if the name matches an alias in the source project.
 			if args.SourceProjectName != "" {
-				_, entry, err := tx.GetImageAlias(ctx, args.SourceProjectName, fp, true)
+				_, entry, err := tx.GetImageAlias(ctx, args.SourceProjectName, fp, args.Type, true)
 				if err == nil {
 					fp = entry.Target
 					return nil
@@ -173,7 +195,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 			// Check if the name matches an alias in the target project (if different from source).
 			if args.ProjectName != "" && args.ProjectName != args.SourceProjectName {
-				_, entry, err := tx.GetImageAlias(ctx, args.ProjectName, fp, true)
+				_, entry, err := tx.GetImageAlias(ctx, args.ProjectName, fp, args.Type, true)
 				if err == nil {
 					fp = entry.Target
 					return nil
@@ -209,10 +231,18 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	// auto-update is on).
 	interval := s.GlobalConfig.ImagesAutoUpdateIntervalHours()
 
-	if args.PreferCached && interval > 0 && alias != fp {
+	if info != nil && args.PreferCached && interval > 0 && alias != fp {
+		imageType := args.Type
+		if imageType == "" {
+			imageType = info.Type
+			if imageType == "" {
+				imageType = "container"
+			}
+		}
+
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for _, architecture := range s.OS.Architectures {
-				cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, args.ImageRegistry, alias, args.Type, architecture)
+				cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, args.ImageRegistry, alias, imageType, architecture)
 				if err == nil && cachedFingerprint != fp {
 					fp = cachedFingerprint
 					break

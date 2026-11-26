@@ -49,6 +49,98 @@ test_authorization() {
   [ "$("${_LXC}" auth group permission add test-group instance c1 can_view project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_view" on entity type "instance" references "/1.0/projects/default", but the entity cannot be viewed by the group' ]
   lxc auth group permission add test-group project default can_view
 
+  # Image alias permissions accept the legacy untyped URL when the name is unique, and the typed URL.
+  lxc auth group permission add test-group image_alias testimage can_view project=default # Legacy untyped form
+  lxc auth group permission remove test-group image_alias testimage can_view project=default # Legacy untyped form
+  ! lxc auth group permission add test-group image_alias testimage can_view project=default type=not-an-image-type || false # Invalid image type
+  lxc auth group permission add test-group image_alias testimage can_view project=default type=container # Valid
+  lxc auth group permission remove test-group image_alias testimage can_view project=default type=container # Valid
+  ! lxc auth group permission remove test-group image_alias testimage can_view project=default type=container || false # Already removed
+
+  # The server accepts a raw legacy untyped alias permission URL when the name is unique.
+  testimage_fp="$(lxc image list -f csv -c F testimage)"
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  body="$(jq --exit-status --compact-output --argjson permission '{"entity_type":"image_alias","url":"/1.0/images/aliases/testimage?project=default","entitlement":"can_view"}' '.permissions += [$permission] | {description, permissions}' <<< "${group}")"
+  lxc query --request PUT /1.0/auth/groups/test-group --data "${body}"
+  lxc query /1.0/auth/groups/test-group | jq --exit-status 'any(.permissions[]; .entity_type == "image_alias" and .url == "/1.0/images/aliases/testimage?project=default")'
+
+  # Pre-extension clients remove an exact locally constructed api.Permission, without URL normalization.
+  legacy_permission='{"entity_type":"image_alias","url":"/1.0/images/aliases/testimage?project=default","entitlement":"can_view"}'
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  jq --exit-status --argjson permission "${legacy_permission}" '.permissions | index($permission) != null' <<< "${group}"
+  lxc query '/1.0/auth/groups?recursion=1' | jq --exit-status --argjson permission "${legacy_permission}" 'any(.[]; .name == "test-group" and (.permissions | index($permission) != null))'
+  etag="$(my_curl -D - -o /dev/null "https://${LXD_ADDR}/1.0/auth/groups/test-group" | awk 'tolower($1) == "etag:" {gsub("\r", "", $2); print $2}')"
+  [ -n "${etag}" ]
+  body="$(jq --exit-status --compact-output --argjson permission "${legacy_permission}" '{description, permissions: [.permissions[] | select(. != $permission)]}' <<< "${group}")"
+  my_curl "https://${LXD_ADDR}/1.0/auth/groups/test-group" -X PUT -H "If-Match: ${etag}" -H 'Content-Type: application/json' --data "${body}" | jq --exit-status '.status_code == 200'
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '[.permissions[] | select(.entity_type == "image_alias")] | length == 0'
+
+  # A typed URL and a legacy untyped URL for the same alias resolve to one permission.
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  body="$(jq --exit-status --compact-output --argjson typed '{"entity_type":"image_alias","url":"/1.0/images/container/aliases/testimage?project=default","entitlement":"can_view"}' --argjson legacy '{"entity_type":"image_alias","url":"/1.0/images/aliases/testimage?project=default","entitlement":"can_view"}' '.permissions += [$typed, $legacy] | {description, permissions}' <<< "${group}")"
+  lxc query --request PUT /1.0/auth/groups/test-group --data "${body}"
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '[.permissions[] | select(.entity_type == "image_alias")] | length == 1'
+
+  # A legacy view permission must satisfy the contextual check for a typed edit permission.
+  body="$(jq --exit-status --compact-output --argjson view '{"entity_type":"image_alias","url":"/1.0/images/aliases/testimage","entitlement":"can_view"}' --argjson edit '{"entity_type":"image_alias","url":"/1.0/images/container/aliases/testimage?project=default","entitlement":"can_edit"}' '{description, permissions: ([.permissions[] | select(.entity_type != "image_alias")] + [$view, $edit])}' <<< "${group}")"
+  lxc query --request PUT /1.0/auth/groups/test-group --data "${body}"
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '[.permissions[] | select(.url == "/1.0/images/aliases/testimage?project=default") | .entitlement] | sort == ["can_edit", "can_view"]'
+
+  # Repeated PATCH requests are additive and deduplicate legacy and typed alias permissions.
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  for permission_url in '/1.0/images/aliases/testimage?project=default' '/1.0/images/container/aliases/testimage?project=default'; do
+    body="$(jq --exit-status --null-input --compact-output --arg url "${permission_url}" '{permissions: [{entity_type: "project", url: "/1.0/projects/default", entitlement: "can_view"}, {entity_type: "image_alias", url: $url, entitlement: "can_view"}]}')"
+    etag="$(my_curl -D - -o /dev/null "https://${LXD_ADDR}/1.0/auth/groups/test-group" | awk 'tolower($1) == "etag:" {gsub("\r", "", $2); print $2}')"
+    [ -n "${etag}" ]
+    my_curl "https://${LXD_ADDR}/1.0/auth/groups/test-group" -X PATCH -H "If-Match: ${etag}" -H 'Content-Type: application/json' --data "${body}" | jq --exit-status '.status_code == 200'
+    lxc query /1.0/auth/groups/test-group | jq --exit-status --argjson permissions "$(jq '.permissions' <<< "${group}")" '.permissions | sort == ($permissions | sort)'
+  done
+
+  # New entitlements use existing contextual view permissions and do not replace earlier grants.
+  lxc query --request PATCH /1.0/auth/groups/test-group --data '{"permissions":[{"entity_type":"image_alias","url":"/1.0/images/aliases/testimage","entitlement":"can_delete"},{"entity_type":"image_alias","url":"/1.0/images/container/aliases/testimage?project=default","entitlement":"can_delete"}]}'
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  jq --exit-status '[.permissions[] | select(.entity_type == "image_alias") | .entitlement] | sort == ["can_delete", "can_edit", "can_view"]' <<< "${group}"
+  lxc query --request PATCH /1.0/auth/groups/test-group --data '{"permissions":[]}'
+  lxc query /1.0/auth/groups/test-group | jq --exit-status --argjson permissions "$(jq '.permissions' <<< "${group}")" '.permissions | sort == ($permissions | sort)'
+
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  body="$(jq --exit-status --compact-output '{description, permissions: [.permissions[] | select(.entity_type != "image_alias")]}' <<< "${group}")"
+  lxc query --request PUT /1.0/auth/groups/test-group --data "${body}"
+
+  # Raw untyped URL rejection; these inserts must track the image schema.
+  dummy_fp="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  lxd sql global "INSERT INTO images (fingerprint, filename, size, architecture, upload_date, project_id, type) SELECT '${dummy_fp}', '${dummy_fp}', 1, 1, datetime('now'), id, 1 FROM projects WHERE name = 'default'"
+  lxd sql global "INSERT INTO images_aliases (name, image_id, description, project_id, image_type) SELECT 'ambiguous', id, '', project_id, 1 FROM images WHERE fingerprint = '${dummy_fp}'"
+  lxd sql global "INSERT INTO images_aliases (name, image_id, description, project_id, image_type) SELECT 'ambiguous', id, '', project_id, 0 FROM images WHERE fingerprint = '${testimage_fp}'"
+
+  # An untyped GET reports the conflict when the caller can view an alias.
+  error="$(lxc query /1.0/images/aliases/ambiguous 2>&1 >/dev/null || true)"
+  echo "${error}" | grep -q 'exists for image types'
+
+  # An unauthenticated caller that cannot view either alias gets 404 instead of the conflict.
+  status="$(curl --silent --insecure --output /dev/null --write-out '%{http_code}' "https://${LXD_ADDR}/1.0/images/aliases/ambiguous")"
+  [ "${status}" = "404" ]
+
+  # CLI add without type= is rejected when the name exists for both types.
+  error="$("${_LXC}" auth group permission add test-group image_alias ambiguous can_view project=default 2>&1 >/dev/null || true)"
+  echo "${error}" | grep -q 'exists for image types'
+  lxc auth group permission add test-group image_alias ambiguous can_view project=default type=container
+  lxc query /1.0/auth/groups/test-group | jq --exit-status 'any(.permissions[]; .entity_type == "image_alias" and .url == "/1.0/images/container/aliases/ambiguous?project=default")'
+  lxc query '/1.0/auth/groups?recursion=1' | jq --exit-status 'any(.[]; .name == "test-group" and any(.permissions[]; .entity_type == "image_alias" and .url == "/1.0/images/container/aliases/ambiguous?project=default"))'
+
+  # An untyped add for another entitlement must not reuse the existing typed permission.
+  error="$("${_LXC}" auth group permission add test-group image_alias ambiguous can_edit project=default 2>&1 >/dev/null || true)"
+  echo "${error}" | grep -q 'exists for image types'
+  lxc auth group permission remove test-group image_alias ambiguous can_view project=default
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '[.permissions[] | select(.entity_type == "image_alias")] | length == 0'
+
+  group="$(lxc query /1.0/auth/groups/test-group)"
+  body="$(jq --exit-status --compact-output --argjson permission '{"entity_type":"image_alias","url":"/1.0/images/aliases/ambiguous?project=default","entitlement":"can_view"}' '.permissions += [$permission] | {description, permissions}' <<< "${group}")"
+  error="$(lxc query --request PUT /1.0/auth/groups/test-group --data "${body}" 2>&1 >/dev/null || true)"
+  echo "${error}" | grep -q 'exists for image types'
+  lxd sql global "DELETE FROM images_aliases WHERE name = 'ambiguous'"
+  lxd sql global "DELETE FROM images WHERE fingerprint = '${dummy_fp}'"
+
   # Cannot grant can_exec without can_view on the instance.
   [ "$("${_LXC}" auth group permission add test-group instance c1 can_exec project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_exec" on entity type "instance" references "/1.0/instances/c1?project=default", but the entity cannot be viewed by the group' ]
   lxc auth group permission add test-group instance c1 can_view project=default # Valid
@@ -495,7 +587,7 @@ fine_grained: true"
   echo "${list_output}" | grep -Fq 'identity,/1.0/auth/identities/oidc/test-user@example.com,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'group,/1.0/auth/groups/test-group,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'identity_provider_group,/1.0/auth/identity-provider-groups/test-idp-group,"can_delete,can_edit,can_view"'
-  echo "${list_output}" | grep -Fq 'image_alias,/1.0/images/aliases/testimage?project=default,"can_delete,can_edit,can_view"'
+  echo "${list_output}" | grep -Fq 'image_alias,/1.0/images/container/aliases/testimage?project=default,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'profile,/1.0/profiles/default?project=default,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,..."'
 

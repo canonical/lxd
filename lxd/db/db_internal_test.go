@@ -24,7 +24,7 @@ const fixtures string = `
     INSERT INTO instances_devices (instance_id, name, type) VALUES (1, 'somename', 1);
     INSERT INTO instances_devices_config (key, value, instance_device_id) VALUES ('configkey', 'configvalue', 1);
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date, auto_update, project_id) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176, 1, 1);
-    INSERT INTO images_aliases (name, image_id, description, project_id, description) VALUES ('somealias', 1, 'some description', 1, '');
+    INSERT INTO images_aliases (name, image_id, description, project_id, image_type) VALUES ('somealias', 1, 'some description', 1, 0);
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
     INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
     INSERT INTO profiles_devices (profile_id, name, type) VALUES (2, 'devicename', 1);
@@ -242,7 +242,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 
 func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
-		_, alias, err := tx.GetImageAlias(ctx, "default", "somealias", true)
+		_, alias, err := tx.GetImageAlias(ctx, "default", "somealias", "", true)
 		s.NoError(err)
 		s.Equal("fingerprint", alias.Target)
 
@@ -252,8 +252,40 @@ func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 
 func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
-		_, _, err := tx.GetImageAlias(ctx, "default", "whatever", true)
+		_, _, err := tx.GetImageAlias(ctx, "default", "whatever", "", true)
 		s.True(api.StatusErrorCheck(err, http.StatusNotFound))
+
+		return nil
+	})
+}
+
+func (s *dbTestSuite) Test_GetImageAlias_same_name_both_types() {
+	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
+		_, err := tx.Tx().Exec(`INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date, auto_update, project_id, type) VALUES ('fingerprint-vm', 'filename-vm', 1024, 0, 1431547174, 1431547175, 1431547176, 1, 1, 1)`)
+		s.NoError(err)
+
+		var vmImageID int
+		err = tx.Tx().QueryRow(`SELECT id FROM images WHERE fingerprint = 'fingerprint-vm'`).Scan(&vmImageID)
+		s.NoError(err)
+
+		_, err = tx.Tx().Exec(`INSERT INTO images_aliases (name, image_id, description, project_id, image_type) VALUES ('somealias', ?, 'vm description', 1, 1)`, vmImageID)
+		s.NoError(err)
+
+		_, containerAlias, err := tx.GetImageAlias(ctx, "default", "somealias", "container", true)
+		s.NoError(err)
+		s.Equal("fingerprint", containerAlias.Target)
+		s.Equal("container", containerAlias.Type)
+
+		_, vmAlias, err := tx.GetImageAlias(ctx, "default", "somealias", "virtual-machine", true)
+		s.NoError(err)
+		s.Equal("fingerprint-vm", vmAlias.Target)
+		s.Equal("virtual-machine", vmAlias.Type)
+
+		_, _, err = tx.GetImageAlias(ctx, "default", "somealias", "", true)
+		s.True(api.StatusErrorCheck(err, http.StatusConflict))
+
+		err = tx.CreateImageAlias(ctx, "default", "somealias", vmImageID, "second vm alias")
+		s.Error(err)
 
 		return nil
 	})
@@ -264,12 +296,28 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 		err := tx.CreateImageAlias(ctx, "default", "Chaosphere", 1, "Someone will like the name")
 		s.NoError(err)
 
-		_, alias, err := tx.GetImageAlias(ctx, "default", "Chaosphere", true)
+		_, alias, err := tx.GetImageAlias(ctx, "default", "Chaosphere", "", true)
 		s.NoError(err)
 		s.Equal("fingerprint", alias.Target)
 
 		return nil
 	})
+}
+
+func (s *dbTestSuite) Test_CreateImageAlias_legacyMicroVM() {
+	err := s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
+		_, err := tx.Tx().ExecContext(ctx, "UPDATE images SET type = 2 WHERE id = 1")
+		s.Require().NoError(err)
+		s.Require().NoError(tx.CreateImageAlias(ctx, "default", "legacy", 1, ""))
+
+		id, alias, err := tx.GetImageAlias(ctx, "default", "legacy", "container", true)
+		s.Require().NoError(err)
+		s.Equal("container", alias.Type)
+		s.Equal("fingerprint", alias.Target)
+		s.NoError(tx.UpdateImageAlias(ctx, id, 1, "updated", false))
+		return nil
+	})
+	s.NoError(err)
 }
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
@@ -285,6 +333,16 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 		fingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, "ubuntu", "test", "container", 0)
 		s.NoError(err)
 		s.Equal("fingerprint", fingerprint)
+
+		_, err = tx.Tx().ExecContext(ctx, "UPDATE images SET type = 2 WHERE id = ?", imageID)
+		s.Require().NoError(err)
+		fingerprint, err = tx.GetCachedImageSourceFingerprint(ctx, "ubuntu", "test", "container", 0)
+		s.Require().NoError(err)
+		s.Equal("fingerprint", fingerprint)
+
+		_, err = tx.GetCachedImageSourceFingerprint(ctx, "ubuntu", "test", "virtual-machine", 0)
+		s.True(api.StatusErrorCheck(err, http.StatusNotFound))
+
 		return nil
 	})
 }

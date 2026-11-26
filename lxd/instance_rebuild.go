@@ -115,8 +115,14 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Source.Type != api.SourceTypeNone {
+			// A microvm boots a container image, so resolve the container alias.
+			aliasType := dbInst.Type.String()
+			if aliasType == string(api.InstanceTypeMicroVM) {
+				aliasType = string(api.InstanceTypeContainer)
+			}
+
 			// Try to resolve the source image from cache.
-			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, aliasType)
 			if err != nil {
 				return err
 			}
@@ -150,8 +156,20 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return instanceRebuildFromEmpty(ctx, inst, op)
 		}
 
-		if req.Source.ImageRegistry != "" || req.Source.Project != "" {
-			sourceImage, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
+		source := req.Source
+		if req.Source.ImageRegistry == "" {
+			if sourceImage == nil {
+				return api.StatusErrorf(http.StatusNotFound, "Source image not found")
+			}
+
+			sourceImageRef = sourceImage.Fingerprint
+			if source.Project != "" {
+				source.Project = sourceImage.Project
+			}
+		}
+
+		if source.ImageRegistry != "" || source.Project != "" {
+			sourceImage, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, *targetProject, sourceImageRef, source, inst.Type().String())
 			if err != nil {
 				return err
 			}
