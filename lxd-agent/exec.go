@@ -469,8 +469,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 			readDone, writeDone := ws.Mirror(conn, shared.NewExecWrapper(waitAttachedChildIsDead, ptys[0]))
 
-			<-readDone
-			<-writeDone
+			<-readDone  //nolint:errcheck
+			<-writeDone //nolint:errcheck
 			_ = conn.Close()
 		})
 	} else {
@@ -485,14 +485,14 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 					conn := s.conns[i]
 					s.connsLock.Unlock()
 
-					<-ws.MirrorWrite(conn, ttys[i])
+					<-ws.MirrorWrite(conn, ttys[i]) //nolint:errcheck
 					_ = ttys[i].Close()
 				} else {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
 
-					<-ws.MirrorRead(conn, ptys[i])
+					<-ws.MirrorRead(conn, ptys[i]) //nolint:errcheck
 					_ = ptys[i].Close()
 					wgEOF.Done()
 				}

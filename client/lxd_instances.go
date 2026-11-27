@@ -1295,7 +1295,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			// And attach stdin and stdout to it
 			go func() {
 				ws.MirrorRead(conn, args.Stdin)
-				<-ws.MirrorWrite(conn, args.Stdout)
+				<-ws.MirrorWrite(conn, args.Stdout) //nolint:errcheck
 				_ = conn.Close()
 
 				if args.DataDone != nil {
@@ -1389,16 +1389,16 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		go func() {
 			for {
 				select {
-				case <-dones[0]:
+				case <-dones[0]: //nolint:errcheck
 					// Handle stdin finish, but don't wait for it if output channels
 					// have all finished.
 					dones[0] = nil
 					_ = conns[0].Close()
-				case <-dones[1]:
+				case <-dones[1]: //nolint:errcheck
 					dones[1] = nil
 					_ = conns[1].Close()
 					waitConns--
-				case <-dones[2]:
+				case <-dones[2]: //nolint:errcheck
 					dones[2] = nil
 					_ = conns[2].Close()
 					waitConns--
@@ -2825,7 +2825,7 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 	// And attach stdin and stdout to it
 	go func() {
 		_, writeDone := ws.Mirror(conn, args.Terminal)
-		<-writeDone
+		<-writeDone //nolint:errcheck
 		_ = conn.Close()
 	}()
 
@@ -2927,7 +2927,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 
 		// Attach reader/writer.
 		_, writeDone := ws.Mirror(conn, rwc)
-		<-writeDone
+		<-writeDone //nolint:errcheck
 		_ = conn.Close()
 
 		return nil
