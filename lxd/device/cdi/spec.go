@@ -14,6 +14,7 @@ import (
 	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi"
 	"github.com/NVIDIA/nvidia-container-toolkit/pkg/nvcdi/transform"
 	"go.yaml.in/yaml/v2"
+	cdicache "tags.cncf.io/container-device-interface/pkg/cdi"
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
@@ -241,8 +242,50 @@ func generateAMDSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec
 	return &spec, nil
 }
 
+func cdiSpecDirs(specDirs ...string) []string {
+	if len(specDirs) > 0 {
+		return specDirs
+	}
+
+	specDirs = make([]string, len(cdicache.DefaultSpecDirs))
+	for i, specDir := range cdicache.DefaultSpecDirs {
+		specDirs[i] = shared.HostPathFollow(specDir)
+	}
+
+	return specDirs
+}
+
+// findSpecInCDICache looks up a CDI spec containing the requested device.
+func findSpecInCDICache(cdiID ID, specDirs ...string) (*specs.Spec, error) {
+	options := []cdicache.Option{
+		cdicache.WithAutoRefresh(false),
+		cdicache.WithSpecDirs(cdiSpecDirs(specDirs...)...),
+	}
+
+	cache, err := cdicache.NewCache(options...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating CDI cache: %w", err)
+	}
+
+	device := cache.GetDevice(cdiID.String())
+	if device == nil {
+		return nil, nil
+	}
+
+	return device.GetSpec().Spec, nil
+}
+
 // generateSpec generates a CDI spec for the given CDI ID.
 var generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
+	spec, err := findSpecInCDICache(cdiID)
+	if err != nil {
+		return nil, err
+	}
+
+	if spec != nil {
+		return spec, nil
+	}
+
 	switch cdiID.Vendor {
 	case NVIDIA:
 		return generateNvidiaSpec(isCore, cdiID, inst)

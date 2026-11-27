@@ -221,6 +221,8 @@ func startCDIDevices(d *deviceCommon, configDevices cdi.ConfigDevices, runConf *
 		})
 	}
 
+	runConf.Environment = append(runConf.Environment, configDevices.Environment...)
+
 	// Serialize the config devices inside the devices directory.
 	f, err := os.Create(cdiConfigDevicesFilePath(devicesPath, d.name))
 	if err != nil {

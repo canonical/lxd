@@ -91,6 +91,7 @@ type RunConfig struct {
 	NetworkInterface []RunConfigItem  // Network interface configuration settings.
 	CGroups          []RunConfigItem  // Cgroup rules to setup.
 	Mounts           []MountEntryItem // Mounts to setup/remove.
+	Environment      []string         // Environment variables to set on startup.
 	Uevents          [][]string       // Uevents to inject.
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
 	GPUDevice        []RunConfigItem  // GPU device configuration settings.
