@@ -274,11 +274,21 @@ func (d *nicP2P) validatePeerRuntime() error {
 		return fmt.Errorf("Failed loading peer instance %q: %w", peer.Instance, err)
 	}
 
+	return d.checkPeerEndpoint(peer, peerInst, d.isPeerHotPlug())
+}
+
+// isPeerHotPlug distinguishes a live device update from a normal instance start.
+func (d *nicP2P) isPeerHotPlug() bool {
+	return operationlock.Get(d.inst.Project().Name, d.inst.Name()).Action() == operationlock.ActionUpdate && d.inst.IsRunning()
+}
+
+// checkPeerEndpoint validates the target. Only a hot-add can wait for a missing device.
+func (d *nicP2P) checkPeerEndpoint(peer *nicP2PPeer, peerInst instance.Instance, hotPlug bool) error {
 	if peerInst.IsSnapshot() {
 		return fmt.Errorf("Peer instance %q cannot be a snapshot", peer.Instance)
 	}
 
-	err = nicP2PCheckSameMember(d.inst.Location(), peerInst.Location())
+	err := nicP2PCheckSameMember(d.inst.Location(), peerInst.Location())
 	if err != nil {
 		return fmt.Errorf("Peer instance %q: %w", peer.Instance, err)
 	}
@@ -292,6 +302,10 @@ func (d *nicP2P) validatePeerRuntime() error {
 	if !peerDevLocal {
 		if peerDevExpanded {
 			return fmt.Errorf("Peer device %q on instance %q must be defined locally on the instance, not inherited from a profile", peer.Device, peer.Instance)
+		}
+
+		if hotPlug {
+			return nil
 		}
 
 		return fmt.Errorf("Peer device %q does not exist on instance %q", peer.Device, peer.Instance)
@@ -588,11 +602,36 @@ func (d *nicP2P) startPeer() (*deviceConfig.RunConfig, error) {
 // peerLinkID resolves or creates the LXD-generated link ID shared by this device pair.
 // It must be called with the device-pair lock held.
 func (d *nicP2P) peerLinkID(peer *nicP2PPeer) (string, error) {
+	hotPlug := d.isPeerHotPlug()
+	// Live device updates commit their configuration after Start returns. Don't use
+	// the other endpoint's old configuration while it is also being updated.
+	if operationlock.Get(d.inst.Project().Name, peer.Instance).Action() == operationlock.ActionUpdate {
+		return "", fmt.Errorf("Peer instance %q is being updated; retry after the update completes", peer.Instance)
+	}
+
 	// Reload the peer now that the lock is held; the other side may have written
 	// its volatile link state while this start was waiting.
 	peerInst, err := instance.LoadByProjectAndName(d.state, d.inst.Project().Name, peer.Instance)
 	if err != nil {
 		return "", fmt.Errorf("Failed loading peer instance %q: %w", peer.Instance, err)
+	}
+
+	err = d.checkPeerEndpoint(peer, peerInst, hotPlug)
+	if err != nil {
+		return "", err
+	}
+
+	if hotPlug {
+		// The new local device is not in the database yet. Use its proposed config,
+		// but never adopt or publish an ID on a missing remote endpoint.
+		if d.inst.LocalDevices()[d.name]["peer"] != d.config["peer"] {
+			return "", errors.New("Peer device must be defined locally on the instance")
+		}
+
+		if peerInst.LocalDevices()[peer.Device] == nil {
+			linkID := uuid.New().String()
+			return linkID, d.volatileSet(map[string]string{"peer.link_id": linkID})
+		}
 	}
 
 	peerVolatileKey := "volatile." + peer.Device + ".peer.link_id"
@@ -609,7 +648,7 @@ func (d *nicP2P) peerLinkID(peer *nicP2PPeer) (string, error) {
 	localLinkID := localInst.LocalConfig()[localVolatileKey]
 
 	// Confirm that the devices still reference each other before publishing either ID.
-	if localInst.LocalDevices()[d.name]["peer"] != d.config["peer"] || peerInst.LocalDevices()[peer.Device]["peer"] != localInst.Name()+":"+d.name {
+	if !hotPlug && localInst.LocalDevices()[d.name]["peer"] != d.config["peer"] {
 		return "", errors.New("Peer devices no longer reference each other")
 	}
 
@@ -807,6 +846,12 @@ func (d *nicP2P) peerLock() (func(), error) {
 // PreRemoveCheck indicates if the device is available for removal.
 func (d *nicP2P) PreRemoveCheck() error {
 	if d.config["peer"] == "" || d.inst == nil {
+		return nil
+	}
+
+	// A removal (unlike a replacement) disconnects only this endpoint. The
+	// peer keeps its interface and link ID until it too is removed.
+	if d.inst.ExpandedDevices()[d.name] == nil {
 		return nil
 	}
 
