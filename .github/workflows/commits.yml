@@ -1,6 +1,11 @@
 name: Commits
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -30,3 +35,92 @@ jobs:
 
           echo "Invalid branch target: ${TARGET} != ${TARGET_FROM_PR_TITLE}"
           exit 1
+
+  ghsa:
+    if: ${{ github.repository == 'canonical/lxd-private' }}
+    permissions:
+      pull-requests: read
+    name: GHSA references
+    runs-on: ubuntu-slim
+    steps:
+      - name: Check GHSA references
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          commits_file=
+          error_reported=false
+          cleanup() {
+            status=$?
+            if [[ -n "${commits_file}" ]]; then
+              rm -f "${commits_file}"
+            fi
+
+            if [[ "${status}" -ne 0 && "${error_reported}" != "true" ]]; then
+              echo "::error::GHSA reference validation failed unexpectedly."
+            fi
+          }
+
+          fail() {
+            echo "::error::$1"
+            error_reported=true
+            exit 1
+          }
+
+          trap cleanup EXIT
+
+          ghsa_link_pattern='https://github\.com/canonical/lxd/security/advisories/GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}'
+          ghsa_trailer_pattern='^GHSA:[[:space:]]+https://github\.com/canonical/lxd/security/advisories/GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$'
+
+          if [[ ! "${PR_BODY}" =~ ${ghsa_link_pattern} ]]; then
+            fail "The pull request description must link to a canonical/lxd GitHub Security Advisory."
+          fi
+
+          commits_file="$(mktemp)"
+          if ! gh api \
+            --paginate \
+            --slurp \
+            "repos/${REPO}/pulls/${PR_NUMBER}/commits" \
+            > "${commits_file}"; then
+            fail "Could not fetch pull request commits."
+          fi
+
+          if ! jq --exit-status '
+            type == "array" and
+            ([.[][]] | length > 0) and
+            all(.[]; type == "array") and
+            all(.[][];
+              type == "object" and
+              (.sha | type == "string") and
+              (.commit.message | type == "string")
+            )
+          ' "${commits_file}" >/dev/null; then
+            fail "The pull request commit response is invalid or empty."
+          fi
+
+          while IFS= read -r commit; do
+            if ! commit_sha="$(jq -r '.sha' <<< "${commit}")" ||
+              ! commit_message="$(jq -r '.commit.message' <<< "${commit}")"; then
+              fail "Could not parse a pull request commit."
+            fi
+
+            if ! trailers="$(printf "%s\n" "${commit_message}" | git interpret-trailers --parse)"; then
+              fail "Could not parse trailers for commit ${commit_sha}."
+            fi
+
+            ghsa_found=false
+            while IFS= read -r trailer; do
+              if [[ "${trailer}" =~ ${ghsa_trailer_pattern} ]]; then
+                ghsa_found=true
+                break
+              fi
+            done <<< "${trailers}"
+
+            if [[ "${ghsa_found}" != "true" ]]; then
+              fail "Commit ${commit_sha} is missing a GHSA trailer."
+            fi
+          done < <(jq -c '.[][]' "${commits_file}")
