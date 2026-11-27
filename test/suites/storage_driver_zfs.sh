@@ -18,6 +18,7 @@ test_storage_driver_zfs() {
   do_zfs_bucket_dataset_cleanup
   do_zfs_image_variants
   do_zfs_image_variant_blocksize
+  do_zfs_delete_unavailable_pool
 }
 
 do_zfs_delegate() {
@@ -677,4 +678,26 @@ zfs_image_variant_tombstone_count() {
 
   out=$(zfs list -H -o name -t volume -d 1 "${parent}")
   echo "${out}" | awk -v stem="${basename}" '$0 ~ "/" stem "-[0-9a-f-]{36}$" { c++ } END { print c+0 }'
+}
+
+do_zfs_delete_unavailable_pool() {
+  local pool loop_file
+  pool="lxdtest-$(basename "${LXD_DIR}")-unavailable"
+  loop_file="${LXD_DIR}/disks/${pool}.img"
+
+  sub_test "Deleting a ZFS pool whose zpool cannot be imported"
+
+  lxc storage create "${pool}" zfs
+  [ -f "${loop_file}" ]
+  [ -d "${LXD_DIR}/storage-pools/${pool}/containers" ]
+
+  echo "Make the zpool unavailable as if its disk was unplugged while LXD was stopped."
+  shutdown_lxd "${LXD_DIR}"
+  rm "${loop_file}"
+  respawn_lxd "${LXD_DIR}" true
+  lxc storage show "${pool}" | grep -xF "status: Unavailable"
+
+  echo "The pool and its left over mount point directories can still be deleted."
+  lxc storage delete "${pool}"
+  [ ! -e "${LXD_DIR}/storage-pools/${pool}" ]
 }
