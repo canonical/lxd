@@ -69,6 +69,72 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     ignore:
+      - dependency-name: "github.com/olekukonko/tablewriter"
+        versions: ["1.x"]
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-6"
+    cooldown:
+      default-days: 7
+    groups:
+      gomod:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/tools"
+    # golangci-lint is declared via the `tool` directive in go.mod, which does not
+    # create a Go import, so `go mod tidy` marks it as `// indirect`. Dependabot
+    # skips indirect deps by default, so we must explicitly allow it here.
+    allow:
+      - dependency-name: "github.com/golangci/golangci-lint/v2"
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-6"
+    cooldown:
+      default-days: 7
+    groups:
+      gomod:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-6"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/doc"
+    ignore:
+      # Pinned intentionally: myst-parser v5.0.0 causes version conflicts.
+      - dependency-name: "myst-parser"
+        versions: [">=5.0.0"]
+    labels: []
+    schedule:
+      interval: "weekly"
+    target-branch: "stable-6"
+    cooldown:
+      default-days: 7
+    groups:
+      pip:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    ignore:
       - dependency-name: "github.com/gorilla/websocket"
         versions: ["> 1.5.1"]
       - dependency-name: "github.com/olekukonko/tablewriter"
