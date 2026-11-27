@@ -34,8 +34,8 @@ test_container_devices_nic_p2p_peer() {
 
   startNicCount=$(find /sys/class/net | wc -l)
 
-  lxc init testimage "${ct1}"
-  lxc init testimage "${ct2}"
+  lxc init testimage "${ct1}" -c boot.autostart=false
+  lxc init testimage "${ct2}" -c boot.autostart=false
 
   # Configure two independent links between the same instances.
   lxc config device add "${ct1}" eth1 nic nictype=p2p name=eth1 peer="${ct2}:eth1"
@@ -116,11 +116,39 @@ test_container_devices_nic_p2p_peer() {
   lxc stop "${ct2}"
   lxc exec "${ct1}" -- test -e /sys/class/net/eth1
   lxc exec "${ct1}" -- test -e /sys/class/net/eth2
+  p2pPeerBridgeSecure "${bridgeName1}"
+  p2pPeerBridgeSecure "${bridgeName2}"
   lxc start "${ct2}"
   lxc exec "${ct2}" -- ip addr add "${subnet1}.2/24" dev eth1
   lxc exec "${ct2}" -- ip addr add "${subnet3}.2/24" dev eth2
   lxc exec "${ct1}" -- ping -nc2 -W1 "${subnet1}.2"
   lxc exec "${ct1}" -- ping -nc2 -W1 "${subnet3}.2"
+
+  sub_test "Full daemon shutdown removes empty peer bridges and filters"
+  local firewall rules
+  firewall=$(lxc info | awk '/firewall:/{print $2}')
+  lxd shutdown --timeout 90
+  case "${firewall}" in
+    nftables) rules=$(nft list ruleset) ;;
+    xtables) rules=$(ebtables -L INPUT --Lx) ;;
+    *) echo "Unknown firewall driver: ${firewall}"; return 1 ;;
+  esac
+  for bridgeName in "${bridgeName1}" "${bridgeName2}"; do
+    [ ! -e "/sys/class/net/${bridgeName}" ]
+    if grep -Fq "${bridgeName}" <<< "${rules}"; then
+      echo "Filter for stopped peer bridge ${bridgeName} still exists"
+      return 1
+    fi
+  done
+
+  respawn_lxd "${LXD_DIR}" true
+  lxc start "${ct2}"
+  p2pPeerBridgeSecure "${bridgeName1}"
+  p2pPeerBridgeSecure "${bridgeName2}"
+  lxc start "${ct1}"
+  lxc exec -T -n "${ct1}" -- ip addr add "${subnet1}.1/24" dev eth1
+  lxc exec -T -n "${ct2}" -- ip addr add "${subnet1}.2/24" dev eth1
+  lxc exec -T -n "${ct1}" -- ping -nc2 -W1 "${subnet1}.2"
 
   # The peer option cannot be changed while either instance is running.
   if lxc config device set "${ct1}" eth1 peer "" ; then
