@@ -1391,3 +1391,6 @@ jobs:
           fi
 
           retry_lp git push --no-follow-tags --quiet --force launchpad HEAD:"${BRANCH}"
+
+          snapChannel="${BRANCH%-*}/${BRANCH##*-}"
+          echo "::notice title=Launchpad snap build::Snap channel: ${snapChannel}, version: ${versionString} (grade: ${grade}, branch: ${BRANCH})"
