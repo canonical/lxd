@@ -366,64 +366,32 @@ func networkRemoveP2PPortsByAlias(bridgeName string, portAlias string) error {
 	return nil
 }
 
-// networkP2PBridgeInUse reports whether a peer bridge still has a port that belongs to the
-// same peer link. It is used to leave the bridge in place while the other endpoint is still
-// attached.
-func networkP2PBridgeInUse(bridgeName string, linkID string) (bool, error) {
-	ports, err := networkBridgePorts(bridgeName)
+// networkRemoveEmptyP2PBridge reports whether the bridge was removed or was already absent.
+func networkRemoveEmptyP2PBridge(bridgeName string, bridgeAlias string) (bool, error) {
+	err := networkCheckP2PLinkAlias(bridgeName, bridgeAlias)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
+			return true, nil
 		}
 
+		return false, fmt.Errorf("Refusing to remove bridge %q: %w", bridgeName, err)
+	}
+
+	ports, err := networkBridgePorts(bridgeName)
+	if err != nil {
 		return false, err
 	}
 
-	aliasPrefix := nicP2PPortAliasPrefix + linkID + ":"
-	for _, port := range ports {
-		alias, err := networkGetP2PLinkAlias(port)
-		if err != nil {
-			continue
-		}
-
-		if strings.HasPrefix(alias, aliasPrefix) {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-// networkRemoveP2PBridge removes a peer bridge and the ports it owns.
-func networkRemoveP2PBridge(bridgeName string, bridgeAlias string, portAliasPrefix string) error {
-	if bridgeName == "" || !network.InterfaceExists(bridgeName) {
-		return nil
-	}
-
-	err := networkCheckP2PLinkAlias(bridgeName, bridgeAlias)
-	if err != nil {
-		return fmt.Errorf("Refusing to remove bridge %q: %w", bridgeName, err)
-	}
-
-	ports, err := networkBridgePorts(bridgeName)
-	if err == nil {
-		for _, port := range ports {
-			alias, err := networkGetP2PLinkAlias(port)
-			if err != nil || !strings.HasPrefix(alias, portAliasPrefix) {
-				// Never delete a port that was not created by this peer link.
-				continue
-			}
-
-			_ = network.InterfaceRemove(port)
-		}
+	if len(ports) > 0 {
+		return false, nil
 	}
 
 	err = network.InterfaceRemove(bridgeName)
 	if err != nil {
-		return fmt.Errorf("Failed removing peer bridge %q: %w", bridgeName, err)
+		return false, fmt.Errorf("Failed removing peer bridge %q: %w", bridgeName, err)
 	}
 
-	return nil
+	return true, nil
 }
 
 // networkBridgePorts returns the names of the ports attached to a Linux bridge.
