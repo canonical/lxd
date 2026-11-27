@@ -57,6 +57,7 @@ type InstanceOperation struct {
 	instanceName      string
 	reusable          bool
 	instanceInitiated bool
+	stopRequested     bool
 }
 
 // Create creates a new operation lock for an Instance if one does not already exist and returns it.
@@ -228,4 +229,30 @@ func (op *InstanceOperation) GetInstanceInitiated() bool {
 	}
 
 	return op.instanceInitiated
+}
+
+// SetStopRequested records that Stop() was called while this operation was running.
+func (op *InstanceOperation) SetStopRequested() {
+	// This function can be called on a nil struct.
+	if op == nil {
+		return
+	}
+
+	instanceOperationsLock.Lock()
+	defer instanceOperationsLock.Unlock()
+
+	op.stopRequested = true
+}
+
+// GetStopRequested returns whether Stop() was called while this operation was running.
+func (op *InstanceOperation) GetStopRequested() bool {
+	// This function can be called on a nil struct.
+	if op == nil {
+		return false
+	}
+
+	instanceOperationsLock.Lock()
+	defer instanceOperationsLock.Unlock()
+
+	return op.stopRequested
 }

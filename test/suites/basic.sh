@@ -887,6 +887,31 @@ EOF
   lxc delete c1
   lxc profile delete foo
 
+  sub_test "Forced stop interrupts a restart stuck in shutdown"
+  # The halt signal is ignored by the init process, so the restart waits for its full timeout.
+  for ephemeral in false true; do
+    lxc launch testimage c1 --ephemeral="${ephemeral}" -c raw.lxc=lxc.signal.halt=SIGCONT
+    lxc restart c1 --timeout 600 &
+    restart_pid="$!"
+    for _ in $(seq 20); do
+      if lxc operation list -f csv | grep -F ',Restarting instance,RUNNING,'; then
+        break
+      fi
+
+      sleep 0.5
+    done
+
+    lxc stop -f c1
+    ! wait "${restart_pid}" || false
+    if [ "${ephemeral}" = "true" ]; then
+      # Ephemeral instances are deleted when stopped.
+      [ "$(lxc list -f csv -c n c1 || echo fail)" = "" ]
+    else
+      [ "$(lxc list -f csv -c s c1)" = "STOPPED" ]
+      lxc delete c1
+    fi
+  done
+
   # Multiple ephemeral instances delete
   lxc launch testimage c1 --ephemeral
   lxc launch testimage c2 --ephemeral

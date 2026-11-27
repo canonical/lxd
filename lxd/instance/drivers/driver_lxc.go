@@ -2555,6 +2555,12 @@ func (d *lxc) Stop(ctx context.Context, stateful bool) error {
 		return err
 	}
 
+	// If a restart is in progress, let it know that it was interrupted by a stop request so it doesn't
+	// start the instance again afterwards.
+	if op.Action() == operationlock.ActionRestart {
+		op.SetStopRequested()
+	}
+
 	ctxMap := logger.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
