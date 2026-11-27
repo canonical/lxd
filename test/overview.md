@@ -2,7 +2,8 @@
 
 The LXD test suite runs from this repository. It includes code and functional
 integration tests, snap integration tests in `test/snap/`, and GPU passthrough
-tests dispatched to Testflinger.
+tests dispatched to Testflinger. For relative operation timings across storage
+backends, clusters, and snap tests, see the [performance guide](./performance.md).
 
 ## CI workflows
 

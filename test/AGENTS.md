@@ -2,7 +2,8 @@
 
 This file provides agent instructions specific to the `test/` directory.
 See `../AGENTS.md` at the repository root for the full development runbook.
-See `README.md` in this directory for test coding conventions and environment variables.
+See `README.md` in this directory for test coding conventions and environment variables,
+and `performance.md` for relative runtime costs of test operations across backends and topologies.
 
 ## Running tests
 

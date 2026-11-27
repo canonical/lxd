@@ -1,6 +1,7 @@
 # LXD tests
 
 For a description of where and how LXD is tested, please refer to the [overview](./overview.md) document.
+For relative runtime costs of test operations across storage drivers, clusters, and snap tests, see the [performance guide](./performance.md) (backed by [`./benchmark-ops.sh`](./benchmark-ops.sh)).
 
 ## How to run
 
