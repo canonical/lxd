@@ -34,7 +34,17 @@ Delete unused networks and storage pools to reduce the attack surface.
 
 Users in the `lxd` group who access LXD through the local Unix socket are given full administrative control over LXD. Thus, ensure that only trusted users are members of the `lxd` group (or any custom group you configure via `snap.lxd.daemon.group`). Audit group membership regularly.
 
-Also see {ref}`howto-security-harden-restricted-group`.
+(howto-security-harden-restricted-group)=
+### Use a restricted group for non-admin users
+
+By default, both the `daemon.group` and `daemon.user.group` are set to `lxd`. This gives all users in the `lxd` group full local access to LXD through the Unix socket. This includes the ability to attach file system paths or devices to any instance, or tweak any instance’s security features.
+
+Only users who are trusted with `sudo` access to your system should be in the `daemon.group`. Define and use a separate group for users who should not have admin access, such as `lxdusers`:
+
+```bash
+sudo groupadd lxdusers
+sudo snap set lxd daemon.user.group=lxdusers
+```
 
 (howto-security-harden-remote)=
 ### Harden remote API access
@@ -103,14 +113,14 @@ Then {ref}`configure the LXD server <server-configure>` to use the proxy by sett
 
 Along with the recommendations below, review all {ref}`instance security options <instance-options-security>` for further options that might be relevant to your setup.
 
-Rather than applying these options on a per-instance basis, use either {ref}`projects`, {ref}`profiles <images-profiles>`, or both. See the section on {ref}`using profiles <howto-security-profiles>` below.
+Rather than applying these options on a per-instance basis, use either {ref}`projects`, {ref}`profiles <images-profiles>`, or both. See the sections on {ref}`using profiles <howto-security-profiles>` and {ref}`configuring projects <howto-security-projects>` below.
 
 (howto-security-harden-unprivileged)=
 ### Use unprivileged containers
 
 By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For details about unprivileged and privileged containers, see {ref}`container-security`.
 
-To prevent a project from using privileged containers, enable {ref}`project restrictions <project-restrictions>`. The default value of the {config:option}`project-restricted:restricted.containers.privilege` option is `unprivileged`, which prevents the use of privileged containers.
+To prevent a project from using privileged containers, {ref}`enable project restrictions <howto-security-projects-restrictions>`. The default value of the {config:option}`project-restricted:restricted.containers.privilege` option is `unprivileged`, which prevents the use of privileged containers.
 
 ```{warning}
 Once a container has run in privileged mode, the host may be compromised, even if you later reconfigure the container to remove the privilege.
@@ -137,7 +147,7 @@ Setting this option to `true` is especially dangerous in combination with {confi
 
 If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures each container to use unique UID/GID maps, preventing potential {abbr}`DoS (Denial of Service)` attacks from one container to another. Only unprivileged containers can use this option.
 
-To require this configuration for containers in a project, enable {ref}`project restrictions <project-restrictions>` and set {config:option}`project-restricted:restricted.containers.privilege` to `isolated`.
+To require this configuration for containers in a project, {ref}`enable project restrictions <howto-security-projects-restrictions>` and set {config:option}`project-restricted:restricted.containers.privilege` to `isolated`.
 
 (howto-security-profiles)=
 ### Use profiles
@@ -152,6 +162,52 @@ sudo lxc profile set hardened1 limits.cpu=2 limits.memory=4GiB limits.processes=
 sudo lxc profile set hardened1 security.idmap.isolated=true security.nesting=false
 sudo lxc profile add <my-container> hardened1
 ```
+
+(howto-security-harden-name-leakage)=
+### Prevent name leakage
+
+The default server configuration makes it possible to list all cgroups on a system, and by extension, all running containers. Prevent container name leakage by blocking access to `/sys/kernel/slab` and `/proc/sched_debug` before you start any containers. To do so, run:
+
+```bash
+chmod 400 /proc/sched_debug
+chmod 700 /sys/kernel/slab/
+```
+
+(howto-security-projects)=
+## Project security
+
+Use projects to confine users, enforce restrictions on instances, and isolate resources. This can help you to harden security in a multi-user environment. See the {ref}`project explanation <exp-projects>` for additional details.
+
+(howto-security-harden-projects)=
+### Confine users to projects
+
+You can confine users to specific projects, which can be configured with stricter restrictions to prevent misuse. For instructions, see {ref}`projects-confine`.
+
+(howto-security-projects-restrictions)=
+### Enable project restrictions
+
+You can prevent the configuration of instances with security-sensitive features by enabling project restrictions:
+
+```bash
+sudo lxc project set <project_name> restricted=true
+```
+
+When project restrictions are enabled on a project, the `restricted.*` options take effect. Review {ref}`project-restrictions` for details about the default values of these options, and selectively allow these options as appropriate for your deployment.
+
+(howto-security-projects-features)=
+### Enable project features
+
+Enable all {ref}`project features <project-features>` to isolate projects from each other. For details about the associated risks when project features are disabled, see {ref}`projects-isolation`.
+
+```{important}
+Configure project features before creating instances in a project. Project features cannot be configured once a project contains instances.
+```
+
+When you create a new project, {config:option}`project-features:features.networks` and {config:option}`project-features:features.networks.zones` both have initial values of `false`, unless configured otherwise. This means that the project inherits those entities from the `default` project.
+
+To fully isolate projects, enable these features and {ref}`set up OVN networking <network-ovn-setup>`. Use the {config:option}`project-restricted:restricted.networks.uplinks` and {config:option}`project-restricted:restricted.networks.subnets` options to control the networks and network routes that the project can use.
+
+If you cannot use OVN, keep {config:option}`project-features:features.networks` disabled and, for partial isolation, use {config:option}`project-restricted:restricted.networks.access` to limit the project to specific networks in the `default` project.
 
 (howto-security-harden-device)=
 ## Device security
@@ -221,38 +277,6 @@ Configure the audit daemon to track all commands to the LXD daemon:
 ### Monitor LXD events
 
 LXD emits {ref}`events <events>`, including {ref}`security events <events-security>`, with information about actions that have occurred. You can use the CLI, REST API, or Loki to {ref}`monitor security events <howto-security-events>`.
-
-(howto-security-harden-multi-user)=
-## Multi-user environment
-
-These settings are relevant if your LXD server is used by multiple users, such as in a lab setting.
-
-(howto-security-harden-restricted-group)=
-### Use a restricted group for non-admin users
-
-By default, both the `daemon.group` and `daemon.user.group` are set to `lxd`. This gives all users in the `lxd` group full local access to LXD through the Unix socket. This includes the ability to attach file system paths or devices to any instance, or tweak any instance’s security features.
-
-Only users who are trusted with `sudo` access to your system should be in the `daemon.group`. Define and use a separate group for users who should not have admin access, such as `lxdusers`:
-
-```bash
-sudo groupadd lxdusers
-sudo snap set lxd daemon.user.group=lxdusers
-```
-
-(howto-security-harden-projects)=
-### Confine users to projects
-
-You can confine users to specific projects, which can be configured with stricter restrictions to prevent misuse. For details, see {ref}`projects-confine-users`, {ref}`exp-projects`, and {ref}`restricted-tls-certs`.
-
-(howto-security-harden-name-leakage)=
-### Prevent name leakage
-
-The default server configuration makes it possible to list all cgroups on a system, and by extension, all running containers. Prevent container name leakage by blocking access to `/sys/kernel/slab` and `/proc/sched_debug` before you start any containers. To do so, run:
-
-```bash
-chmod 400 /proc/sched_debug
-chmod 700 /sys/kernel/slab/
-```
 
 (howto-security-harden-host)=
 ## Harden the LXD host OS
