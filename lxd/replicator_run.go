@@ -439,6 +439,12 @@ func replicatorRunInstanceForwardDurableOperationHook(ctx context.Context, op *o
 		return fmt.Errorf("Failed getting instance ID from operation inputs: %w", err)
 	}
 
+	// Forward operations must run even if a snapshot failed, so they can't be cancelled while pending. One that
+	// starts after the run was cancelled would otherwise replicate its instance anyway.
+	if !op.Parent().IsRunning() {
+		return fmt.Errorf("Skipping instance replication because the replicator run was cancelled: %w", context.Canceled)
+	}
+
 	err = checkSnapshotStageSucceededForInstance(instanceID, op)
 	if err != nil {
 		return err
@@ -604,12 +610,22 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 
 		restoreOpCancelled = true
 
-		err = remoteMigrateOp.Wait()
-		if err != nil {
+		err = remoteMigrateOp.WaitContext(ctx)
+		if err != nil && ctx.Err() == nil {
 			return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, err)
 		}
 
-		return restoreOp.Wait()
+		if err == nil {
+			err = restoreOp.WaitContext(ctx)
+		}
+
+		if err != nil && ctx.Err() != nil {
+			// Cancelling the sink on the hosting member also disconnects the push from the current leader cluster.
+			cancelOperationOnMember(s, memberAddress, restoreOp.Get().ID)
+			return fmt.Errorf("Restore of instance %q cancelled: %w", instName, ctx.Err())
+		}
+
+		return err
 	}
 
 	// Load profiles for the instance to pass to the migration sink.
@@ -712,9 +728,14 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 		return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
 	}
 
-	remoteErr := remoteMigrateOp.Wait()
+	remoteErr := remoteMigrateOp.WaitContext(ctx)
 	if remoteErr != nil {
+		// Cancelling the local sink also disconnects the push from the current leader cluster.
 		_ = sinkOp.Cancel()
+		if ctx.Err() != nil {
+			return fmt.Errorf("Restore of instance %q cancelled: %w", instName, ctx.Err())
+		}
+
 		return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
 	}
 
@@ -1102,8 +1123,14 @@ func snapshotInstance(ctx context.Context, op *operations.Operation, instanceID 
 			return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
 		}
 
-		err = snapOp.Wait()
+		// Stop waiting if the run is cancelled, but let the snapshot finish on the hosting member rather than
+		// interrupting it part way.
+		err = snapOp.WaitContext(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				return fmt.Errorf("Snapshot of instance %q cancelled: %w", instName, ctx.Err())
+			}
+
 			return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting cluster member: %w", instName, err)
 		}
 
@@ -1205,7 +1232,7 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		destOpCancelled := false
 		defer func() {
 			if !destOpCancelled {
-				_ = destOp.Cancel()
+				cancelTargetOperation(dstClient, destOp.Get().ID)
 			}
 		}()
 
@@ -1229,14 +1256,21 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 			return fmt.Errorf("Failed starting push migration for instance %q: %w", instName, err)
 		}
 
-		err = srcMigrateOp.Wait()
+		err = srcMigrateOp.WaitContext(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				// Cancelling the source on the hosting member disconnects the migration, so the destination
+				// sink fails too.
+				cancelOperationOnMember(s, memberAddress, srcMigrateOp.Get().ID)
+				return fmt.Errorf("Replication of instance %q cancelled: %w", instName, ctx.Err())
+			}
+
 			return fmt.Errorf("Replication of instance %q failed on hosting cluster member: %w", instName, err)
 		}
 
 		destOpCancelled = true
 
-		return destOp.Wait()
+		return destOp.WaitContext(ctx)
 	}
 
 	srcRenderRes, _, err := inst.Render()
@@ -1269,11 +1303,11 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	}
 
 	// Guard against leaving the destination sink operation running if we fail
-	// before starting the source; disarmed once the transfer starts.
+	// before starting the source; disarmed just before the source connects.
 	destOpCancelled := false
 	defer func() {
 		if !destOpCancelled {
-			_ = destOp.Cancel()
+			cancelTargetOperation(dstClient, destOp.Get().ID)
 		}
 	}()
 
@@ -1310,6 +1344,10 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 
 	err = srcMigration.Do(ctx, s, op)
 	if err != nil {
+		// The source may have failed before connecting, so the sink would otherwise wait for it until it times
+		// out. Cancelling a sink that has already failed is harmless.
+		cancelTargetOperation(dstClient, destOp.Get().ID)
+
 		// Cancelling the run disconnects the migration, so report the cancellation rather than the
 		// resulting connection error.
 		if ctx.Err() != nil {
@@ -1319,7 +1357,46 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		return fmt.Errorf("Replication of instance %q failed on source: %w", instName, err)
 	}
 
-	return destOp.Wait()
+	return destOp.WaitContext(ctx)
+}
+
+// cancelTargetOperation cancels an operation on the target cluster. The target client sends every request with the
+// replicator run's context, so this uses a fresh one to still cancel the operation once the run is cancelled. It
+// runs in the background so that an unresponsive target doesn't hold up the run.
+func cancelTargetOperation(client lxd.InstanceServer, opID string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		contextClient, ok := client.(interface {
+			WithContext(ctx context.Context) lxd.InstanceServer
+		})
+		if ok {
+			client = contextClient.WithContext(ctx)
+		}
+
+		err := client.DeleteOperation(opID)
+		if err != nil {
+			logger.Debug("Failed cancelling operation on target cluster", logger.Ctx{"operation": opID, "err": err})
+		}
+	}()
+}
+
+// cancelOperationOnMember cancels an operation on another member of this cluster. The member clients that a
+// replicator run uses send every request with the run's context, so they can't cancel anything once the run is
+// cancelled. This connects again with a fresh context.
+func cancelOperationOnMember(s *state.State, memberAddress string, opID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	if err == nil {
+		err = client.DeleteOperation(opID)
+	}
+
+	if err != nil {
+		logger.Warn("Failed cancelling operation on cluster member", logger.Ctx{"member": memberAddress, "operation": opID, "err": err})
+	}
 }
 
 // runScheduledReplicators loads all replicators, checks their schedule config key against the current
