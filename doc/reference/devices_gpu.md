@@ -65,6 +65,9 @@ Add a specific GPU from the host system as a `physical` GPU device to an instanc
 
     lxc config device add <instance_name> <device_name> gpu gputype=physical id=<fully_qualified_CDI_name>
 
+When a matching spec exists in `/etc/cdi` or `/var/run/cdi`, LXD uses that spec.
+Otherwise, LXD generates a spec with the vendor's container toolkit.
+
 For example, add the first available NVIDIA discrete GPU on your system:
 
     lxc config device add <instance_name> <device_name> gpu gputype=physical id=nvidia.com/gpu=0

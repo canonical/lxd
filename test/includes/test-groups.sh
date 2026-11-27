@@ -93,6 +93,8 @@ readonly test_group_instance=(
     "concurrent_exec"
     "console"
     "console_vm"
+    "container_devices_cdi_amd"
+    "container_devices_cdi_nvidia"
     "container_devices_gpu"
     "container_devices_none"
     "container_devices_proxy"

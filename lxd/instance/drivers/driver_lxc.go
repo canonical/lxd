@@ -1305,6 +1305,10 @@ func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfi
 		}
 	})
 
+	if instanceRunning && runConf != nil && len(runConf.Environment) > 0 {
+		return nil, errors.New("Device cannot set environment variables when instance is running")
+	}
+
 	// If runConf supplied, perform any container specific setup of device.
 	if runConf != nil {
 		// Shift device file ownership if needed before mounting into container.
@@ -2082,6 +2086,14 @@ func (d *lxc) startCommon(ctx context.Context, progressReporter ioprogress.Progr
 				if err != nil {
 					return nil, "", nil, fmt.Errorf("Failed setting up device mount %q: %w", dev.Name(), err)
 				}
+			}
+		}
+
+		// Pass any environment variables into LXC.
+		for _, env := range runConf.Environment {
+			err = lxcSetConfigItem(cc, "lxc.environment", env)
+			if err != nil {
+				return nil, "", nil, fmt.Errorf("Failed setting up device environment %q: %w", dev.Name(), err)
 			}
 		}
 

@@ -16,6 +16,11 @@ import (
 	"github.com/canonical/lxd/shared"
 )
 
+const (
+	nvidiaVisibleDevicesVoid = "NVIDIA_VISIBLE_DEVICES=void"
+	nvidiaVoidMountPath      = "/var/run/nvidia-container-devices/void"
+)
+
 // specDevToInstanceDev builds a list of unix-char devices to be created from a CDI spec.
 func specDevToInstanceDev(configDevices *ConfigDevices, d specs.DeviceNode) error {
 	if d.Path == "" {
@@ -26,6 +31,8 @@ func specDevToInstanceDev(configDevices *ConfigDevices, d specs.DeviceNode) erro
 	if hostPath == "" {
 		hostPath = d.Path // When the hostPath is empty, the path is the device path in the container.
 	}
+
+	hostPath = shared.HostPath(hostPath)
 
 	// Only fetch major/minor from device if both are unspecified (0).
 	// Some devices legitimately have minor=0, so we can't treat 0 as "unspecified" individually.
@@ -77,6 +84,8 @@ func specMountToInstanceDev(configDevices *ConfigDevices, cdiID ID, mounts []*sp
 		if containerPath == "" {
 			return errors.New("The container path is empty")
 		}
+
+		hostSourcePath = shared.HostPath(hostSourcePath)
 
 		// mount.HostPath directory can contain a symbolic link, so evaluate it to get dereferenced path.
 		mountHostPathDir := filepath.Dir(hostSourcePath)
@@ -144,6 +153,13 @@ func specMountToInstanceDev(configDevices *ConfigDevices, cdiID ID, mounts []*sp
 	}
 
 	for _, mount := range mounts {
+		// This mount prevents the NVIDIA Container Runtime from processing volume
+		// mount requests. LXD performs CDI injection directly, so the marker is
+		// unnecessary and is unsafe when /var/run is a symlink inside the rootfs.
+		if cdiID.Vendor == NVIDIA && mount.HostPath == "/dev/null" && mount.ContainerPath == nvidiaVoidMountPath {
+			continue
+		}
+
 		err := addBindMount(mount.HostPath, mount.ContainerPath, mount.Options...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed configuring spec instance device %q: %w", mount.HostPath, err)
@@ -280,7 +296,7 @@ func specHookToLXDCDIHook(hook *specs.Hook, hooks *Hooks) error {
 
 // applyContainerEdits updates the configDevices and the hooks with CDI "container edits"
 // (edits are user space libraries to mount and char device to pass to the container).
-func applyContainerEdits(edits specs.ContainerEdits, configDevices *ConfigDevices, hooks *Hooks) error {
+func applyContainerEdits(cdiID ID, edits specs.ContainerEdits, configDevices *ConfigDevices, hooks *Hooks) error {
 	for _, d := range edits.DeviceNodes {
 		if d == nil {
 			continue
@@ -290,6 +306,16 @@ func applyContainerEdits(edits specs.ContainerEdits, configDevices *ConfigDevice
 		if err != nil {
 			return err
 		}
+	}
+
+	for _, env := range edits.Env {
+		// NVIDIA's marker only prevents the legacy runtime from injecting devices
+		// again. It is not required by LXD's direct CDI translation.
+		if cdiID.Vendor == NVIDIA && env == nvidiaVisibleDevicesVoid {
+			continue
+		}
+
+		configDevices.Environment = append(configDevices.Environment, env)
 	}
 
 	for _, hook := range edits.Hooks {
@@ -356,7 +382,7 @@ func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevi
 		// will be applied.
 		if device.Name == cdiID.Name {
 			found = true
-			err := applyContainerEdits(device.ContainerEdits, configDevices, hooks)
+			err := applyContainerEdits(cdiID, device.ContainerEdits, configDevices, hooks)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -371,7 +397,7 @@ func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevi
 	}
 
 	// 3. Process general container edits (device-independent)
-	err = applyContainerEdits(spec.ContainerEdits, configDevices, hooks)
+	err = applyContainerEdits(cdiID, spec.ContainerEdits, configDevices, hooks)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -137,6 +137,77 @@ jobs:
       - name: Install build dependencies
         uses: $/.github/actions/install-lxd-builddeps
 
+      - name: Resolve NVIDIA Container Toolkit CLI version
+        id: nvidia-ctk-version
+        run: |
+          set -eux
+          version="$(go list -m -f '{{.Version}}' github.com/NVIDIA/nvidia-container-toolkit)"
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            version="$(go list -m -f '{{.Version}}' github.com/NVIDIA/nvidia-container-toolkit@latest)"
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Selected nvidia-ctk ${version}"
+
+      - name: Resolve AMD Container Toolkit CLI version
+        id: amd-ctk-version
+        run: |
+          set -eux
+          version="$(sed -n '/^  amd-ctk:$/,/^  [^ ]/s/.*source-commit: \([0-9a-f]\{40\}\).*/\1/p' snap/snapcraft.yaml)"
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            version="$(go list -m -f '{{.Version}}' github.com/ROCm/container-toolkit@latest)"
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Selected amd-ctk ${version}"
+
+      - name: Resolve Container Toolkit cache key
+        id: container-toolkit-cache
+        env:
+          NVIDIA_VERSION: ${{ steps.nvidia-ctk-version.outputs.version }}
+          AMD_VERSION: ${{ steps.amd-ctk-version.outputs.version }}
+        run: |
+          set -eux
+          . /etc/os-release
+          cache_key="container-toolkit-clis-${ID}-${VERSION_ID}-$(dpkg --print-architecture)-$(go env GOVERSION)-nvidia-${NVIDIA_VERSION}-amd-${AMD_VERSION}"
+          echo "key=${cache_key}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Container Toolkit CLIs
+        id: cache-container-toolkit
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            /home/runner/go/bin/amd-ctk
+            /home/runner/go/bin/nvidia-ctk
+          key: ${{ steps.container-toolkit-cache.outputs.key }}
+
+      - name: Install Container Toolkit CLIs
+        if: steps.cache-container-toolkit.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          timeout 10m go install "github.com/NVIDIA/nvidia-container-toolkit/cmd/nvidia-ctk@${NVIDIA_VERSION}"
+          timeout 10m env CGO_ENABLED=0 go install "github.com/ROCm/container-toolkit/cmd/amd-ctk@${AMD_VERSION}"
+        env:
+          NVIDIA_VERSION: ${{ steps.nvidia-ctk-version.outputs.version }}
+          AMD_VERSION: ${{ steps.amd-ctk-version.outputs.version }}
+
+      - name: Save Container Toolkit CLIs
+        if: |
+          steps.cache-container-toolkit.outputs.cache-hit != 'true' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            /home/runner/go/bin/amd-ctk
+            /home/runner/go/bin/nvidia-ctk
+          key: ${{ steps.container-toolkit-cache.outputs.key }}
+
+      - name: Verify Container Toolkit CLIs
+        run: |
+          set -eux
+          amd-ctk --help >/dev/null
+          nvidia-ctk --help >/dev/null
+
       - name: Download go dependencies
         run: |
           set -eux
@@ -246,6 +317,7 @@ jobs:
         with:
           name: system-test-deps
           path: |
+            /home/runner/go/bin/amd-ctk
             /home/runner/go/bin/devlxd-client
             /home/runner/go/bin/fuidshift
             /home/runner/go/bin/lxc
@@ -258,6 +330,7 @@ jobs:
             /home/runner/go/bin/mini-acme
             /home/runner/go/bin/mini-loki
             /home/runner/go/bin/mini-oidc
+            /home/runner/go/bin/nvidia-ctk
             /home/runner/go/bin/sysinfo
           retention-days: 3
 

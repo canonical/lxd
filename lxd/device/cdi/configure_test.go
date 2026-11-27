@@ -1,6 +1,7 @@
 package cdi
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -8,9 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	cdicache "tags.cncf.io/container-device-interface/pkg/cdi"
 	"tags.cncf.io/container-device-interface/specs-go"
 
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/shared"
 )
 
 // mockInstance is a simple mock for instance.Instance.
@@ -71,6 +74,10 @@ func TestGenerateFromCDI(t *testing.T) {
 					},
 				},
 				ContainerEdits: specs.ContainerEdits{ // General edits
+					Env: []string{
+						"NVIDIA_DRIVER_CAPABILITIES=all",
+						"NVIDIA_VISIBLE_DEVICES=void",
+					},
 					Hooks: []*specs.Hook{
 						{
 							HookName: "create-symlinks",
@@ -82,6 +89,11 @@ func TestGenerateFromCDI(t *testing.T) {
 							HostPath:      hostPath,
 							ContainerPath: "/mnt/container",
 							Options:       []string{"ro", "bind"},
+						},
+						{
+							HostPath:      "/dev/null",
+							ContainerPath: nvidiaVoidMountPath,
+							Options:       []string{"ro", "nosuid", "nodev", "bind"},
 						},
 					},
 				},
@@ -113,6 +125,7 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.Len(t, config.BindMounts, 1)
 		assert.Equal(t, hostPath, config.BindMounts[0]["source"])
 		assert.Equal(t, "/mnt/container", config.BindMounts[0]["path"])
+		assert.Equal(t, []string{"NVIDIA_DRIVER_CAPABILITIES=all"}, config.Environment)
 	})
 
 	t.Run("Device Name Mismatch", func(t *testing.T) {
@@ -292,6 +305,61 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.NotContains(t, config.UnixCharDevs[1], "uid")
 		assert.NotContains(t, config.UnixCharDevs[1], "gid")
 	})
+}
+
+func TestFindSpecInCDICache(t *testing.T) {
+	specDir := t.TempDir()
+	specPath := filepath.Join(specDir, "nvidia.yaml")
+	spec := specs.Spec{
+		Version: "0.5.0",
+		Kind:    "nvidia.com/gpu",
+		Devices: []specs.Device{
+			{
+				Name: "0",
+				ContainerEdits: specs.ContainerEdits{
+					DeviceNodes: []*specs.DeviceNode{
+						{
+							Path:        "/dev/null",
+							HostPath:    "/dev/null",
+							Major:       1,
+							Minor:       3,
+							Permissions: "rwm",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	specJSON, err := json.Marshal(spec)
+	require.NoError(t, err)
+
+	err = os.WriteFile(specPath, specJSON, 0644)
+	require.NoError(t, err)
+
+	found, err := findSpecInCDICache(ID{Vendor: NVIDIA, Class: GPU, Name: "0"}, specDir)
+	require.NoError(t, err)
+	require.NotNil(t, found)
+	assert.Equal(t, spec.Kind, found.Kind)
+	assert.Equal(t, spec.Devices[0].Name, found.Devices[0].Name)
+
+	found, err = findSpecInCDICache(ID{Vendor: NVIDIA, Class: GPU, Name: "1"}, specDir)
+	require.NoError(t, err)
+	assert.Nil(t, found)
+}
+
+func TestCDISpecDirs(t *testing.T) {
+	t.Setenv("SNAP", "/snap/lxd/current")
+	t.Setenv("SNAP_NAME", "lxd")
+
+	dirs := cdiSpecDirs()
+	require.Len(t, dirs, len(cdicache.DefaultSpecDirs))
+	for i, specDir := range cdicache.DefaultSpecDirs {
+		assert.Equal(t, shared.HostPathFollow(specDir), dirs[i])
+	}
+
+	customDirs := []string{"/custom/cdi"}
+	assert.Equal(t, customDirs, cdiSpecDirs(customDirs...))
 }
 
 func TestSpecMountToInstanceDev_SymlinkHostPath(t *testing.T) {

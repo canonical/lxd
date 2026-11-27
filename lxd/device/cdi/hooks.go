@@ -55,6 +55,8 @@ type ConfigDevices struct {
 	UnixCharDevs []map[string]string `json:"unix_char_devs" yaml:"unix_char_devs"`
 	// BindMounts is a slice of mount configuration.
 	BindMounts []map[string]string `json:"bind_mounts" yaml:"bind_mounts"`
+	// Environment is a slice of environment entries.
+	Environment []string `json:"environment" yaml:"environment"`
 }
 
 const (
