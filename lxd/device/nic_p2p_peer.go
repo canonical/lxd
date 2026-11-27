@@ -172,9 +172,7 @@ func networkCreateP2PBridge(bridgeName string, bridgeAlias string) error {
 		}
 	} else {
 		bridge := &ip.Bridge{
-			Link: ip.Link{
-				Name: bridgeName,
-			},
+			Name: bridgeName,
 		}
 
 		err := bridge.Add()

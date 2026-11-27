@@ -154,9 +154,7 @@ func TestShouldShow(t *testing.T) {
 func TestIPColumnData(t *testing.T) {
 	list := cmdList{}
 	info := api.InstanceFull{
-		Instance: api.Instance{
-			StatusCode: api.Running,
-		},
+		StatusCode: api.Running,
 		State: &api.InstanceState{
 			Network: map[string]api.InstanceStateNetwork{
 				"eth0": {
