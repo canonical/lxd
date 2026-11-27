@@ -18,7 +18,9 @@ configure_ovn
 
 # Configure LXD.
 lxc project switch default
-lxc storage create default zfs
+# Use btrfs as a fast CoW driver without depending on snap-provided ZFS tools
+# matching the host kernel module version.
+lxc storage create default btrfs
 
 # XXX: known DNS resolution on for .lxd domain with 24.04 instances
 IMAGE="${TEST_IMG:-ubuntu-daily:22.04}"
@@ -297,20 +299,18 @@ ovn_basic_tests() {
     lxc config device set u2 eth0 ipv4.routes.external=198.51.100.1/32 --project testovn
     lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::1/128 --project testovn
 
-    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-        echo "==> Check NIC external route duplicate detection on the same network when uplink has anycast routed ingress mode enabled"
-        ! lxc config device set u2 eth0 ipv4.routes.external=198.51.100.0/26 --project testovn || false
-        ! lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::/122 --project testovn || false
+    echo "==> Check NIC external route duplicate detection on the same network when uplink has anycast routed ingress mode enabled"
+    ! lxc config device set u2 eth0 ipv4.routes.external=198.51.100.0/26 --project testovn || false
+    ! lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::/122 --project testovn || false
 
-        echo "==> Check NIC external route duplicate is allowed on another network when uplink has anycast routed ingress mode enabled"
-        lxc network create ovn-virtual-network2 --type=ovn --project testovn network=dummy
-        lxc init "${IMAGE}" u3 --project testovn -s default
-        lxc config device add u3 eth0 nic network=ovn-virtual-network2 name=eth0 --project testovn \
-            ipv4.routes.external=198.51.100.0/26 \
-            ipv6.routes.external=2001:db8:1:2::/122
-        lxc delete -f u3 --project testovn
-        lxc network delete ovn-virtual-network2 --project testovn
-    fi
+    echo "==> Check NIC external route duplicate is allowed on another network when uplink has anycast routed ingress mode enabled"
+    lxc network create ovn-virtual-network2 --type=ovn --project testovn network=dummy
+    lxc init "${IMAGE}" u3 --project testovn -s default
+    lxc config device add u3 eth0 nic network=ovn-virtual-network2 name=eth0 --project testovn \
+        ipv4.routes.external=198.51.100.0/26 \
+        ipv6.routes.external=2001:db8:1:2::/122
+    lxc delete -f u3 --project testovn
+    lxc network delete ovn-virtual-network2 --project testovn
 
     lxc delete -f u2 --project testovn
     lxc network unset dummy ovn.ingress_mode --project default
@@ -544,23 +544,21 @@ ovn_basic_tests() {
     ! ovs-vsctl list-br | grep -F ovn || false # Check the OVS bridge is removed.
     ip link delete dummybr0 # Remove dummy uplink bridge.
 
-    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-        echo "==> Test updating OVN network with IPv6 address on an uplink without IPv6"
-        ip link add dummybr0 type bridge # Create dummy uplink bridge.
-        ip address add 192.0.2.1/24 dev dummybr0
-        ip link set dummybr0 up
-        lxc network create dummy --type=physical \
-            parent=dummybr0 \
-            ipv4.gateway=192.0.2.1/24 \
-            ipv4.ovn.ranges=192.0.2.10-192.0.2.19
-        lxc network create ovn-virtual-network --type=ovn network=dummy
-        [ -n "$(lxc network get ovn-virtual-network ipv6.address)" ] # Check network has an IPv6 address.
-        [ "$(lxc network get ovn-virtual-network volatile.network.ipv6.address || echo fail)" = "" ] # Check no uplink IPv6 address was allocated.
-        lxc network set ovn-virtual-network user.foo=bar # Check network can be updated.
-        lxc network delete ovn-virtual-network
-        lxc network delete dummy
-        ip link delete dummybr0 # Remove dummy uplink bridge.
-    fi
+    echo "==> Test updating OVN network with IPv6 address on an uplink without IPv6"
+    ip link add dummybr0 type bridge # Create dummy uplink bridge.
+    ip address add 192.0.2.1/24 dev dummybr0
+    ip link set dummybr0 up
+    lxc network create dummy --type=physical \
+        parent=dummybr0 \
+        ipv4.gateway=192.0.2.1/24 \
+        ipv4.ovn.ranges=192.0.2.10-192.0.2.19
+    lxc network create ovn-virtual-network --type=ovn network=dummy
+    [ -n "$(lxc network get ovn-virtual-network ipv6.address)" ] # Check network has an IPv6 address.
+    [ "$(lxc network get ovn-virtual-network volatile.network.ipv6.address || echo fail)" = "" ] # Check no uplink IPv6 address was allocated.
+    lxc network set ovn-virtual-network user.foo=bar # Check network can be updated.
+    lxc network delete ovn-virtual-network
+    lxc network delete dummy
+    ip link delete dummybr0 # Remove dummy uplink bridge.
 
     echo "==> Test physical uplinks using OVS bridge"
     ovs-vsctl add-br dummybr0 # Create dummy uplink bridge.
@@ -701,24 +699,16 @@ ovn_forward_tests() {
     lxc network forward create ovn-virtual-network 2001:db8:1:2::1
     ! ovn-nbctl list load_balancer | grep -F name || false
 
-    allocated_ipv4_address=''
-    allocated_ipv6_address=''
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      echo "==> Check forwards can be created with an allocated IP address"
-      allocated_ipv4_address="$(lxc network forward create ovn-virtual-network --allocate=ipv4 | cut -d' ' -f3)"
-      allocated_ipv6_address="$(lxc network forward create ovn-virtual-network --allocate=ipv6 | cut -d' ' -f3)"
-    fi
+    echo "==> Check forwards can be created with an allocated IP address"
+    allocated_ipv4_address="$(lxc network forward create ovn-virtual-network --allocate=ipv4 | cut -d' ' -f3)"
+    allocated_ipv6_address="$(lxc network forward create ovn-virtual-network --allocate=ipv6 | cut -d' ' -f3)"
 
-    if hasNeededAPIExtension network_load_balancer; then
-      echo "==> Check load balancer cannot be created on same listen address as forward"
-      ! lxc network load-balancer create ovn-virtual-network 192.0.2.1 || false
-      ! lxc network load-balancer create ovn-virtual-network 2001:db8:1:2::1 || false
-      if hasNeededAPIExtension network_allocate_external_ips; then
-        echo "==> Check load balancer cannot be created on same listen address as allocated forward"
-        ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv4_address}" || false
-        ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv6_address}" || false
-      fi
-    fi
+    echo "==> Check load balancer cannot be created on same listen address as forward"
+    ! lxc network load-balancer create ovn-virtual-network 192.0.2.1 || false
+    ! lxc network load-balancer create ovn-virtual-network 2001:db8:1:2::1 || false
+    echo "==> Check load balancer cannot be created on same listen address as allocated forward"
+    ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv4_address}" || false
+    ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv6_address}" || false
 
     echo "==> Check user config is allowed, but unknown keys are not"
     lxc network forward set ovn-virtual-network 192.0.2.1 user.foo=bar
@@ -729,19 +719,15 @@ ovn_forward_tests() {
     lxc network forward set ovn-virtual-network 192.0.2.1 target_address="${ip4AddressPrefix}.2"
     lxc network forward set ovn-virtual-network 2001:db8:1:2::1  target_address="${ip6AddressPrefix}::2"
     [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 2 ]
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      echo "==> Check basic forward default target address can be set on allocated forward (to non-existent target address)"
-      lxc network forward set ovn-virtual-network "${allocated_ipv4_address}" target_address="${ip4AddressPrefix}.3"
-      lxc network forward set ovn-virtual-network "${allocated_ipv6_address}"  target_address="${ip6AddressPrefix}::3"
-      [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 4 ]
-    fi
+    echo "==> Check basic forward default target address can be set on allocated forward (to non-existent target address)"
+    lxc network forward set ovn-virtual-network "${allocated_ipv4_address}" target_address="${ip4AddressPrefix}.3"
+    lxc network forward set ovn-virtual-network "${allocated_ipv6_address}"  target_address="${ip6AddressPrefix}::3"
+    [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 4 ]
 
     lxc network forward delete ovn-virtual-network 192.0.2.1
     lxc network forward delete ovn-virtual-network 2001:db8:1:2::1
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      lxc network forward delete ovn-virtual-network "${allocated_ipv4_address}"
-      lxc network forward delete ovn-virtual-network "${allocated_ipv6_address}"
-    fi
+    lxc network forward delete ovn-virtual-network "${allocated_ipv4_address}"
+    lxc network forward delete ovn-virtual-network "${allocated_ipv6_address}"
     ! ovn-nbctl list load_balancer | grep -F name || false
 
     echo "==> Check basic forward can be created with target address (to non-existent target address)"
@@ -930,22 +916,20 @@ EOF
     lxc network delete ovn-virtual-network2
     [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 4 ]
 
-    if hasNeededAPIExtension ovn_internal_load_balancer; then
-        echo "==> Test internal forwards"
+    echo "==> Test internal forwards"
 
-        echo "==> Check creating internal forwards"
-        lxc network forward create ovn-virtual-network "${ip4AddressPrefix}.10" target_address="${U1_IPV4}"
-        lxc network forward create ovn-virtual-network "${ip6AddressPrefix}::10" target_address="${U1_IPV6}"
-        [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 6 ]
+    echo "==> Check creating internal forwards"
+    lxc network forward create ovn-virtual-network "${ip4AddressPrefix}.10" target_address="${U1_IPV4}"
+    lxc network forward create ovn-virtual-network "${ip6AddressPrefix}::10" target_address="${U1_IPV6}"
+    [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 6 ]
 
-        echo "==> Check we get no connection outside of the OVN network"
-        ! dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" u1.lxd || false
-        ! dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" u1.lxd || false
+    echo "==> Check we get no connection outside of the OVN network"
+    ! dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" u1.lxd || false
+    ! dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" u1.lxd || false
 
-        echo "==> Check accessing forwards's listen address inside the u1"
-        [ "$(lxc exec u1 -- dig a +tcp "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.1" ]
-        [ "$(lxc exec u1 -- dig aaaa +tcp "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::1" ]
-    fi
+    echo "==> Check accessing forwards's listen address inside the u1"
+    [ "$(lxc exec u1 -- dig a +tcp "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.1" ]
+    [ "$(lxc exec u1 -- dig aaaa +tcp "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::1" ]
 
     echo "==> Clean up static routes to network forward external address"
     ip r del 2001:db8:1:2::1/128 via "${ovnIPv6}" dev lxdbr0
@@ -1002,11 +986,9 @@ ovn_load_balancer_tests() {
     echo "==> Check load balancers can be created"
     lxc network load-balancer create ovn-virtual-network 192.0.2.1
     lxc network load-balancer create ovn-virtual-network 2001:db8:1:2::1
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      echo "==> Check load balancers can be created with allocated IP addresses"
-      allocated_ipv4_address="$(lxc network load-balancer create ovn-virtual-network --allocate=ipv4 | cut -d' ' -f4)"
-      allocated_ipv6_address="$(lxc network load-balancer create ovn-virtual-network --allocate=ipv6 | cut -d' ' -f4)"
-    fi
+    echo "==> Check load balancers can be created with allocated IP addresses"
+    allocated_ipv4_address="$(lxc network load-balancer create ovn-virtual-network --allocate=ipv4 | cut -d' ' -f4)"
+    allocated_ipv6_address="$(lxc network load-balancer create ovn-virtual-network --allocate=ipv6 | cut -d' ' -f4)"
 
     echo "==> Check no OVN config yet as not fully setup"
     ! ovn-nbctl list load_balancer | grep -F name || false
@@ -1014,11 +996,9 @@ ovn_load_balancer_tests() {
     echo "==> Check forward cannot be created on same listen address as load balancer"
     ! lxc network forward create ovn-virtual-network 192.0.2.1 || false
     ! lxc network forward create ovn-virtual-network 2001:db8:1:2::1 || false
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      echo "==> Check forward cannot be created on same listen address as allocated load balancer"
-      ! lxc network forward create ovn-virtual-network "${allocated_ipv4_address}" || false
-      ! lxc network forward create ovn-virtual-network "${allocated_ipv6_address}" || false
-    fi
+    echo "==> Check forward cannot be created on same listen address as allocated load balancer"
+    ! lxc network forward create ovn-virtual-network "${allocated_ipv4_address}" || false
+    ! lxc network forward create ovn-virtual-network "${allocated_ipv6_address}" || false
 
     echo "==> Check user config is allowed, but unknown keys are not"
     lxc network load-balancer set ovn-virtual-network 192.0.2.1 user.foo=bar
@@ -1028,10 +1008,8 @@ ovn_load_balancer_tests() {
     echo "==> Check duplicate load balancers cannot be created"
     ! lxc network load-balancer create ovn-virtual-network 192.0.2.1 || false
     ! lxc network load-balancer create ovn-virtual-network 2001:db8:1:2::1 || false
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv4_address}" || false
-      ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv6_address}" || false
-    fi
+    ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv4_address}" || false
+    ! lxc network load-balancer create ovn-virtual-network "${allocated_ipv6_address}" || false
 
     echo "==> Check a load balancer on another ovn network connected to same uplink cannot conflict with an existing load balancer"
     lxc network create ovn-virtual-network2 --type=ovn network=lxdbr0
@@ -1040,15 +1018,13 @@ ovn_load_balancer_tests() {
 
     ! lxc network load-balancer create ovn-virtual-network2 192.0.2.1 || false
     ! lxc network load-balancer create ovn-virtual-network2 2001:db8:1:2::1|| false
-    if hasNeededAPIExtension network_allocate_external_ips; then
-      ! lxc network load-balancer create ovn-virtual-network2 "${allocated_ipv4_address}" || false
-      ! lxc network load-balancer create ovn-virtual-network2 "${allocated_ipv6_address}" || false
+    ! lxc network load-balancer create ovn-virtual-network2 "${allocated_ipv4_address}" || false
+    ! lxc network load-balancer create ovn-virtual-network2 "${allocated_ipv6_address}" || false
 
-      # Creation of load balancers below may fail if the allocated IP address conflicts with the hardcoded ones.
-      # Delete the allocated ones to prevent flaky tests.
-      lxc network load-balancer delete ovn-virtual-network "${allocated_ipv4_address}"
-      lxc network load-balancer delete ovn-virtual-network "${allocated_ipv6_address}"
-    fi
+    # Creation of load balancers below may fail if the allocated IP address conflicts with the hardcoded ones.
+    # Delete the allocated ones to prevent flaky tests.
+    lxc network load-balancer delete ovn-virtual-network "${allocated_ipv4_address}"
+    lxc network load-balancer delete ovn-virtual-network "${allocated_ipv6_address}"
     lxc network load-balancer create ovn-virtual-network2 192.0.2.2
     lxc network load-balancer create ovn-virtual-network2 2001:db8:1:2::2
 
@@ -1252,94 +1228,92 @@ EOF
         ! lxc exec u2 -- dig aaaa +tcp +timeout=1 @2001:db8:1:2::1 lxd.localdomain +short || false
     done
 
-    if hasNeededAPIExtension ovn_internal_load_balancer; then
-        echo "==> Test internal load balancers"
+    echo "==> Test internal load balancers"
 
-        echo "==> Start dnsmasq back on both instances"
-        lxc exec u1 -- systemctl start dnsmasq
-        lxc exec u2 -- systemctl start dnsmasq
+    echo "==> Start dnsmasq back on both instances"
+    lxc exec u1 -- systemctl start dnsmasq
+    lxc exec u2 -- systemctl start dnsmasq
 
-        echo "==> Check creating internal load balancers"
-        lxc network load-balancer create ovn-virtual-network "${ip4AddressPrefix}.10"
-        lxc network load-balancer create ovn-virtual-network "${ip6AddressPrefix}::10"
+    echo "==> Check creating internal load balancers"
+    lxc network load-balancer create ovn-virtual-network "${ip4AddressPrefix}.10"
+    lxc network load-balancer create ovn-virtual-network "${ip6AddressPrefix}::10"
 
-        echo "==> Add backend for u1"
-        lxc network load-balancer backend add ovn-virtual-network "${ip4AddressPrefix}.10" u1 "${U1_IPV4}"
-        lxc network load-balancer backend add ovn-virtual-network "${ip6AddressPrefix}::10" u1 "${U1_IPV6}"
+    echo "==> Add backend for u1"
+    lxc network load-balancer backend add ovn-virtual-network "${ip4AddressPrefix}.10" u1 "${U1_IPV4}"
+    lxc network load-balancer backend add ovn-virtual-network "${ip6AddressPrefix}::10" u1 "${U1_IPV6}"
 
-        echo "==> Add backend for u2"
-        lxc network load-balancer backend add ovn-virtual-network "${ip4AddressPrefix}.10" u2 "${U2_IPV4}"
-        lxc network load-balancer backend add ovn-virtual-network "${ip6AddressPrefix}::10" u2 "${U2_IPV6}"
+    echo "==> Add backend for u2"
+    lxc network load-balancer backend add ovn-virtual-network "${ip4AddressPrefix}.10" u2 "${U2_IPV4}"
+    lxc network load-balancer backend add ovn-virtual-network "${ip6AddressPrefix}::10" u2 "${U2_IPV6}"
 
-        echo "==> Configure ports for the load balancers towards u1 and u2"
-        if hasNeededAPIExtension network_load_balancer_pool; then
-            lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 target_backend=u1,u2
-            lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 target_backend=u1,u2
-        else
-            lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 u1,u2
-            lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 u1,u2
-        fi
-
-        echo "==> Check OVN config mentions both backend target IPs"
-        ovn-nbctl list load_balancer | grep -F "{\"${ip4AddressPrefix}.10:53\"=\"${U1_IPV4}:53,${U2_IPV4}:53\"}"
-        ovn-nbctl list load_balancer | grep -F "{\"[${ip6AddressPrefix}::10]:53\"=\"[${U1_IPV6}]:53,[${U2_IPV6}]:53\"}"
-
-        echo "==> Check load balancers are not accessible from outside of the OVN network"
-        ! dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
-        ! dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
-
-        echo "==> Check DNS load balancing is working and is accessible from u1 and u2"
-        u1_ip4_seen=0
-        u1_ip6_seen=0
-        u2_ip4_seen=0
-        u2_ip6_seen=0
-
-        for _ in $(seq 20); do
-            [ "$(lxc exec u1 -- dig a +tcp "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.1" ] && u1_ip4_seen=$((u1_ip4_seen + 1))
-            [ "$(lxc exec u1 -- dig aaaa +tcp "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::1" ] && u1_ip6_seen=$((u1_ip6_seen + 1))
-            [ "$(lxc exec u2 -- dig a +tcp "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.2" ] && u2_ip4_seen=$((u2_ip4_seen + 1))
-            [ "$(lxc exec u2 -- dig aaaa +tcp "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::2" ] && u2_ip6_seen=$((u2_ip6_seen + 1))
-        done
-
-        if [ "${u1_ip4_seen}" -lt 1 ] || \
-           [ "${u1_ip6_seen}" -lt 1 ] || \
-           [ "${u2_ip4_seen}" -lt 1 ] || \
-           [ "${u2_ip6_seen}" -lt 1 ]; then
-            echo "Error: Load balancing failed: Not all endpoints were resolved"
-            return 1
-        fi
-
-        echo "==> Check stopping dnsmasq on both instances stop load balancer from working"
-        lxc exec u1 -- systemctl stop dnsmasq
-        lxc exec u2 -- systemctl stop dnsmasq
-
-        ! dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
-        ! dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
-        ! lxc exec u1 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
-        ! lxc exec u1 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
-        ! lxc exec u2 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
-        ! lxc exec u2 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
-
-        echo "==> Change load balancer ports towards u2 only"
-        lxc network load-balancer port remove ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53
-        lxc network load-balancer port remove ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53
-        if hasNeededAPIExtension network_load_balancer_pool; then
-            lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 target_backend=u2
-            lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 target_backend=u2
-        else
-            lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 u2
-            lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 u2
-        fi
-
-        echo "==> Check accessing load balancer inside the u1 and u2"
-        lxc exec u2 -- systemctl start dnsmasq
-        for _ in $(seq 5); do
-            [ "$(lxc exec u1 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.2" ]
-            [ "$(lxc exec u1 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::2" ]
-            [ "$(lxc exec u2 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.2" ]
-            [ "$(lxc exec u2 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::2" ]
-        done
+    echo "==> Configure ports for the load balancers towards u1 and u2"
+    if hasNeededAPIExtension network_load_balancer_pool; then
+        lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 target_backend=u1,u2
+        lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 target_backend=u1,u2
+    else
+        lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 u1,u2
+        lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 u1,u2
     fi
+
+    echo "==> Check OVN config mentions both backend target IPs"
+    ovn-nbctl list load_balancer | grep -F "{\"${ip4AddressPrefix}.10:53\"=\"${U1_IPV4}:53,${U2_IPV4}:53\"}"
+    ovn-nbctl list load_balancer | grep -F "{\"[${ip6AddressPrefix}::10]:53\"=\"[${U1_IPV6}]:53,[${U2_IPV6}]:53\"}"
+
+    echo "==> Check load balancers are not accessible from outside of the OVN network"
+    ! dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
+    ! dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
+
+    echo "==> Check DNS load balancing is working and is accessible from u1 and u2"
+    u1_ip4_seen=0
+    u1_ip6_seen=0
+    u2_ip4_seen=0
+    u2_ip6_seen=0
+
+    for _ in $(seq 20); do
+        [ "$(lxc exec u1 -- dig a +tcp "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.1" ] && u1_ip4_seen=$((u1_ip4_seen + 1))
+        [ "$(lxc exec u1 -- dig aaaa +tcp "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::1" ] && u1_ip6_seen=$((u1_ip6_seen + 1))
+        [ "$(lxc exec u2 -- dig a +tcp "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.2" ] && u2_ip4_seen=$((u2_ip4_seen + 1))
+        [ "$(lxc exec u2 -- dig aaaa +tcp "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::2" ] && u2_ip6_seen=$((u2_ip6_seen + 1))
+    done
+
+    if [ "${u1_ip4_seen}" -lt 1 ] || \
+       [ "${u1_ip6_seen}" -lt 1 ] || \
+       [ "${u2_ip4_seen}" -lt 1 ] || \
+       [ "${u2_ip6_seen}" -lt 1 ]; then
+        echo "Error: Load balancing failed: Not all endpoints were resolved"
+        return 1
+    fi
+
+    echo "==> Check stopping dnsmasq on both instances stop load balancer from working"
+    lxc exec u1 -- systemctl stop dnsmasq
+    lxc exec u2 -- systemctl stop dnsmasq
+
+    ! dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
+    ! dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
+    ! lxc exec u1 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
+    ! lxc exec u1 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
+    ! lxc exec u2 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short || false
+    ! lxc exec u2 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short || false
+
+    echo "==> Change load balancer ports towards u2 only"
+    lxc network load-balancer port remove ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53
+    lxc network load-balancer port remove ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53
+    if hasNeededAPIExtension network_load_balancer_pool; then
+        lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 target_backend=u2
+        lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 target_backend=u2
+    else
+        lxc network load-balancer port add ovn-virtual-network "${ip4AddressPrefix}.10" tcp 53 u2
+        lxc network load-balancer port add ovn-virtual-network "${ip6AddressPrefix}::10" tcp 53 u2
+    fi
+
+    echo "==> Check accessing load balancer inside the u1 and u2"
+    lxc exec u2 -- systemctl start dnsmasq
+    for _ in $(seq 5); do
+        [ "$(lxc exec u1 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.2" ]
+        [ "$(lxc exec u1 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::2" ]
+        [ "$(lxc exec u2 -- dig a +tcp +timeout=1 "@${ip4AddressPrefix}.10" lxd.localdomain +short)" = "127.0.0.2" ]
+        [ "$(lxc exec u2 -- dig aaaa +tcp +timeout=1 "@${ip6AddressPrefix}::10" lxd.localdomain +short)" = "::2" ]
+    done
 
     echo "==> Clean up static routes to LB external address"
     ip r del 2001:db8:1:2::1/128 via "${ovnIPv6}" dev lxdbr0
@@ -1440,16 +1414,8 @@ ovn_peering_tests() {
     ! lxc exec ovn2 --project=ovn2 -- ping -nc1 -i0.1 -w2 -6 2001:db8:1:2::1 || false
 
     echo "==> Test that pinging external addresses between networks does work without peering (goes via uplink)"
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
-        # LXD 5.0 does not exclude oifname == lxdbr0 from its bridge postrouting masquerade rule,
-        # which mangles traffic on lxdbr0 when br_netfilter is loaded.
-        lxc network set lxdbr0 ipv4.nat=false ipv6.nat=false
-    fi
     lxc exec ovn2 --project=ovn2 -- ping -nc1 -i0.1 -w2 -4 198.51.100.2
     lxc exec ovn2 --project=ovn2 -- ping -nc1 -i0.1 -w2 -6 2001:db8:1:2::2
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
-        lxc network set lxdbr0 ipv4.nat=true ipv6.nat=true
-    fi
 
     echo "==> Remove routes on uplink manually to purposefully break uplink routing of external routes"
     ip -4 r del 198.51.100.0/24 dev lxdbr0
@@ -1462,11 +1428,9 @@ ovn_peering_tests() {
     echo "==> Now setup peering again"
     lxc network peer create ovn1 ovn1foo ovn2/ovn2 --project=ovn1
     ! lxc network peer create ovn2 ovn2foo ovn1/ovn1 --project=ovn2 || false # Detect old peering entry exists.
-    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-        # Detect old peering entry still references the target network.
-        err="$(! lxc network peer create ovn2 ovn2bar ovn1/ovn1 --project=ovn2 2>&1)"
-        echo "${err}" | grep -F 'Network already has peer "ovn2foo" for the target network, which must be deleted first'
-    fi
+    # Detect old peering entry still references the target network.
+    err="$(! lxc network peer create ovn2 ovn2bar ovn1/ovn1 --project=ovn2 2>&1)"
+    echo "${err}" | grep -F 'Network already has peer "ovn2foo" for the target network, which must be deleted first'
     lxc network peer delete ovn2 ovn2foo --project=ovn2 # Delete old peering entry.
     lxc network peer create ovn2 ovn2foo ovn1/ovn1 --project=ovn2
     lxc network peer ls ovn2 --project=ovn2 | grep ovn2foo | grep -wF CREATED
@@ -1506,20 +1470,12 @@ ovn_peering_tests() {
         ipv4.routes.external=198.51.100.2/32 \
         ipv6.routes.external=2001:db8:1:2::2/128
 
-    # If LXD 5.0 then NIC port is only added on instance start.
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
-        lxc start ovn1 --project=ovn1
-    fi
-
     ovn-nbctl list address_set | grep -F 198.51.100.1/32
     ovn-nbctl list address_set | grep -F 2001:db8:1:2::1/128
     ovn-nbctl list address_set | grep -F 198.51.100.2/32
     ovn-nbctl list address_set | grep -F 2001:db8:1:2::2/128
 
-    # If LXD 5.21 or later then NIC port is only added on NIC add not instance start.
-    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
-        lxc start ovn1 --project=ovn1
-    fi
+    lxc start ovn1 --project=ovn1
 
     echo "==> Check security policies prevent spoofed packets using peer connection"
     waitInstanceBooted ovn1 ovn1
@@ -2056,19 +2012,12 @@ ovn_acl_tests() {
     echo "==> Expect the unused OVN port group to be cleaned up after unassignment from NIC (leaving just network port group)"
     [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
 
-    echo "==> Test assigning ACL to stopped instance NIC and check OVN port group isn't created until start time"
+    echo "==> Test assigning ACL to stopped instance NIC and check OVN port group is created at assignment time"
     lxc stop -f c1
     lxc config device set c1 eth0 security.acls=lxdbr0-ping
 
-    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^5\. ]]; then
-        # Starting with LXD 6 the ACL port groups are created at assignment time, not start time.
-        echo "==> Expect 3 LXD related port group to exist before the device is started (network port group, ACL port group, and per-ACL-per-network port group)"
-        [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
-    else
-        # Test 5.0 and 5.21 behavior.
-        echo "==> Don't expect any more OVN port groups to be created yet (just network port group)"
-        [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
-    fi
+    echo "==> Expect 3 LXD related port group to exist before the device is started (network port group, ACL port group, and per-ACL-per-network port group)"
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     lxc start c1
 
@@ -2376,13 +2325,11 @@ ovn_leases_tests() {
 
         lxc delete -f c1
 
-        if hasNeededAPIExtension network_allocations_ovn_uplink; then
-            echo "==> Check OVN external addresses show on lxc network list-allocations"
-            ovn_ext_ipv4="$(lxc network get ovn0 volatile.network.ipv4.address)"
-            ovn_ext_ipv6="$(lxc network get ovn0 volatile.network.ipv6.address)"
-            lxc network list-allocations --format csv | grep -F "/1.0/networks/ovn0,${ovn_ext_ipv4}"
-            lxc network list-allocations --format csv | grep -F "/1.0/networks/ovn0,${ovn_ext_ipv6}"
-        fi
+        echo "==> Check OVN external addresses show on lxc network list-allocations"
+        ovn_ext_ipv4="$(lxc network get ovn0 volatile.network.ipv4.address)"
+        ovn_ext_ipv6="$(lxc network get ovn0 volatile.network.ipv6.address)"
+        lxc network list-allocations --format csv | grep -F "/1.0/networks/ovn0,${ovn_ext_ipv4}"
+        lxc network list-allocations --format csv | grep -F "/1.0/networks/ovn0,${ovn_ext_ipv6}"
 
         echo "==> Ensure the instance gets static ipv4 and dynamic ipv6 leases and that they"
         echo "==> do not disappear after restart"
@@ -2593,29 +2540,13 @@ else
     # Otherwise run full suite.
     ovn_basic_tests
     ovn_forward_tests
-    if hasNeededAPIExtension network_load_balancer; then
-      ovn_load_balancer_tests
-    else
-      echo "Skipping ovn_load_balancer_tests, not supported"
-    fi
+    ovn_load_balancer_tests
     ovn_peering_tests
     ovn_dhcp_reservation_tests
-    if hasNeededAPIExtension ovn_nic_nesting; then
-      ovn_nested_vlan_tests
-    else
-      echo "Skipping ovn_nested_vlan_tests, not supported"
-    fi
+    ovn_nested_vlan_tests
     ovn_acl_tests
-    if hasNeededAPIExtension network_ovn_l3only; then
-      ovn_l3only_tests
-    else
-      echo "Skipping ovn_l3only_tests, not supported"
-    fi
-    if hasNeededAPIExtension network_ovn_uplink_vlan; then
-      ovn_vlan_uplink_tests
-    else
-      echo "Skipping ovn_vlan_uplink_tests, not supported"
-    fi
+    ovn_l3only_tests
+    ovn_vlan_uplink_tests
     ovn_leases_tests
     ovn_keepalived_ip_failover_tests
 fi

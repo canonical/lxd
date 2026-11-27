@@ -29,11 +29,7 @@ test_devlxd() {
 
     # Create instance and boot
     if [ "${instType}" = "vm" ]; then
-        if hasNeededAPIExtension devlxd_images_vm; then
-            lxc launch "${IMAGE}" "${instName}" --vm -s "${poolName}" -c security.devlxd.images=true
-        else
-            lxc launch "${IMAGE}" "${instName}" --vm -s "${poolName}"
-        fi
+        lxc launch "${IMAGE}" "${instName}" --vm -s "${poolName}" -c security.devlxd.images=true
         waitInstanceBooted "${instName}"
         setup_instance_gocoverage "${instName}"
     else
@@ -48,9 +44,7 @@ test_devlxd() {
 
     # devlxd is enabled by default and should work
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
-    if hasNeededAPIExtension cloud_init; then
-        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
-    fi
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
 
     local meta_data
@@ -58,8 +52,8 @@ test_devlxd() {
     grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -F 'instance-id:' <<< "${meta_data}"
     grep -xF "local-hostname: ${instName}" <<< "${meta_data}"
 
-    # Check devlxd instance name validation works on containers (5.21 onwards).
-    if [ "${instType}" = "container" ] && [[ ! "${LXD_SNAP_CHANNEL}" =~ ^[45]\.0/ ]]; then
+    # Check devlxd instance name validation works on containers.
+    if [ "${instType}" = "container" ]; then
         local peerName="${instName}-peer"
         lxc launch "${IMAGE}" "${peerName}" -s "${poolName}"
 
@@ -94,9 +88,7 @@ test_devlxd() {
 
     # devlxd should be running after restart
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
-    if hasNeededAPIExtension cloud_init; then
-        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
-    fi
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
     meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
     grep -F 'instance-id:' <<< "${meta_data}"
@@ -128,9 +120,7 @@ test_devlxd() {
 
     # devlxd should be running after the config is enabled
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
-    if hasNeededAPIExtension cloud_init; then
-        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
-    fi
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
 
     # Ensure that the outputted metadata is in correct format.
@@ -140,88 +130,68 @@ test_devlxd() {
 
     # Test cloud-init user-data.
     # Ensure the header is preserved and the outputted value is not escaped.
-    if hasNeededAPIExtension cloud_init; then
-        local cloudInitUserData="#cloud-config
+    local cloudInitUserData="#cloud-config
 package_update: false
 package_upgrade: false
 runcmd:
 - echo test"
 
-        lxc config set "${instName}" cloud-init.user-data "${cloudInitUserData}"
-        local out
-        out="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config/cloud-init.user-data)"
-        [ "${out}" = "${cloudInitUserData}" ]
-        lxc config unset "${instName}" cloud-init.user-data
+    lxc config set "${instName}" cloud-init.user-data "${cloudInitUserData}"
+    local out
+    out="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config/cloud-init.user-data)"
+    [ "${out}" = "${cloudInitUserData}" ]
+    lxc config unset "${instName}" cloud-init.user-data
+
+    # test instance Ready state
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+    [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "true" ]
+
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Started"}' http://custom.socket/1.0
+    [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "false" ]
+
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+    [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "true" ]
+
+    if [ "${instType}" = "vm" ]; then
+        prepare_vm_for_hard_stop "${instName}"
     fi
+    lxc stop -f "${instName}"
+    sleep 5
+    [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "false" ]
 
-    if hasNeededAPIExtension instance_ready_state; then
-        # test instance Ready state
-        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
-        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "true" ]
-
-        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Started"}' http://custom.socket/1.0
-        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "false" ]
-
-        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
-        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "true" ]
-
-        if [ "${instType}" = "vm" ]; then
-            prepare_vm_for_hard_stop "${instName}"
-        fi
-        lxc stop -f "${instName}"
-        sleep 5
-        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "false" ]
-
-        lxc start "${instName}"
-        waitInstanceBooted "${instName}"
-    else
-        echo "Skipping instance Ready state tests, not supported"
-    fi
+    lxc start "${instName}"
+    waitInstanceBooted "${instName}"
 
     # Image export / nested instance tests
-    local testImageExport=true
-    if [ "${instType}" = "container" ] && [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\.0/ ]]; then
-        echo "Skipping devlxd image export tests on ${LXD_SNAP_CHANNEL}, not supported"
-        testImageExport=false
+    waitInstanceBooted "${instName}"
+    installLXDSnapInstance "${instName}" "${LXD_SNAP_CHANNEL}"
+    lxc exec "${instName}" -- lxd init --auto
+
+    local monitorPID=""
+    lxc monitor --type lifecycle --format json > monitor.json 2>&1 &
+    monitorPID="${!}"
+
+    local nestedArgs=()
+    if [ "${instType}" = "vm" ]; then
+        nestedArgs+=(--vm)
     fi
 
-    if [ "${testImageExport}" = "true" ]; then
-        waitInstanceBooted "${instName}"
-        installLXDSnapInstance "${instName}" "${LXD_SNAP_CHANNEL}"
-        lxc exec "${instName}" -- lxd init --auto
-
-        local monitorPID=""
-        local checkEvent=false
-        if [ "${instType}" = "container" ] || hasNeededAPIExtension devlxd_images_vm; then
-            lxc monitor --type lifecycle --format json > monitor.json 2>&1 &
-            monitorPID="${!}"
-            checkEvent=true
-        fi
-
-        local nestedArgs=()
-        if [ "${instType}" = "vm" ]; then
-            nestedArgs+=(--vm)
-        fi
-
-        local nestedName="${instName}1"
-        lxc exec "${instName}" -- /snap/bin/lxc launch "${IMAGE}" "${nestedName}" "${nestedArgs[@]}"
-        if [ "${instType}" = "vm" ]; then
-            sleep 10
-        fi
-        [ "$(lxc exec "${instName}" -- /snap/bin/lxc list "${nestedName}" -f csv -c s)" = "RUNNING" ]
-
-        if [ "${checkEvent}" = "true" ]; then
-            kill "${monitorPID}"
-
-            # If the guest retrieved the image from the host, the host should emit an "image-retrieved" lifecycle event. The
-            # requestor address tells us that this was definitely the guest.
-            # Newer LXD versions use the protocol instead of the requestor address to distinguish devlxd requests
-            grep -wF 'image-retrieved' monitor.json | jq --exit-status '.metadata.requestor | (.address == "@devlxd" or .protocol == "devlxd")'
-            rm -f monitor.json
-        fi
-
-        lxc exec "${instName}" -- /snap/bin/lxc delete -f "${nestedName}"
+    local nestedName="${instName}1"
+    lxc exec "${instName}" -- /snap/bin/lxc launch "${IMAGE}" "${nestedName}" "${nestedArgs[@]}"
+    if [ "${instType}" = "vm" ]; then
+        sleep 10
     fi
+    [ "$(lxc exec "${instName}" -- /snap/bin/lxc list "${nestedName}" -f csv -c s)" = "RUNNING" ]
+
+    kill "${monitorPID}"
+
+    # If the guest retrieved the image from the host, the host should emit an "image-retrieved" lifecycle event. The
+    # requestor address tells us that this was definitely the guest.
+    # Newer LXD versions use the protocol instead of the requestor address to distinguish devlxd requests
+    grep -wF 'image-retrieved' monitor.json | jq --exit-status '.metadata.requestor | (.address == "@devlxd" or .protocol == "devlxd")'
+    rm -f monitor.json
+
+    lxc exec "${instName}" -- /snap/bin/lxc delete -f "${nestedName}"
 
     echo "==> Deleting ${instType}"
     if [ "${instType}" = "vm" ]; then
@@ -235,10 +205,6 @@ test_devlxd_container() {
 }
 
 test_devlxd_vm() {
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-        echo "Skipping devlxd VM tests on ${LXD_SNAP_CHANNEL}, not supported"
-        return 0
-    fi
     test_devlxd "vm" "v1"
 }
 

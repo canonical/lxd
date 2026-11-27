@@ -11,28 +11,11 @@ if [ "${architecture}" != "x86_64" ] && [ "${architecture}" != "aarch64" ]; then
   exit 0
 fi
 
-# Determine whether 2023 Microsoft CA certs are expected based on the LXD channel.
-# 4.0/* will never get the 2023 Microsoft CA certs
-EXPECT_2023_CERTS=true
-if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-    EXPECT_2023_CERTS=false
-fi
-
 efi_sb_key_tests() {
   # FirmwareSecvarUpdaterVersion is the trace of the patched EDK2 injecting the
   # 2023 Microsoft CA certs into the KEK and db variables on boot.
-  # The `lxc config uefi` command requires the instances_uefi_vars API extension
-  # which is not available on 5.0/* and older.
-  if hasNeededAPIExtension instances_uefi_vars; then
-    echo "==> Verify presence of FirmwareSecvarUpdaterVersion variable"
-    if [ "${EXPECT_2023_CERTS}" = "true" ]; then
-      lxc config uefi get v1 FirmwareSecvarUpdaterVersion-a2f5da32-9e4c-4f6b-b3a1-7c8d5e6f0a1b
-    else
-      ! lxc config uefi get v1 FirmwareSecvarUpdaterVersion-a2f5da32-9e4c-4f6b-b3a1-7c8d5e6f0a1b || false
-    fi
-  else
-    echo "==> Skipping FirmwareSecvarUpdaterVersion check as instances_uefi_vars API extension is not supported"
-  fi
+  echo "==> Verify presence of FirmwareSecvarUpdaterVersion variable"
+  lxc config uefi get v1 FirmwareSecvarUpdaterVersion-a2f5da32-9e4c-4f6b-b3a1-7c8d5e6f0a1b
 
   lxc exec v1 -- apt-get update
   lxc exec v1 -- apt-get install -y --no-install-recommends efitools
@@ -40,26 +23,14 @@ efi_sb_key_tests() {
   echo "==> Read Microsoft UEFI CA certs from KEK variable"
   lxc exec v1 -- efi-readvar -v KEK
   for k in "KEK CA 2011" "KEK 2K CA 2023"; do
-    if [ "${EXPECT_2023_CERTS}" = "true" ] || [ "${k}" != "KEK 2K CA 2023" ]; then
-      lxc exec v1 -- efi-readvar -v KEK | grep -F "${k}"
-    else
-      ! lxc exec v1 -- efi-readvar -v KEK | grep -F "${k}" || false
-    fi
+    lxc exec v1 -- efi-readvar -v KEK | grep -F "${k}"
   done
 
   echo "==> Read Microsoft UEFI CA certs from db variable"
   lxc exec v1 -- efi-readvar -v db
   for k in "UEFI CA 2011" "UEFI CA 2023"; do
-    if [ "${EXPECT_2023_CERTS}" = "true" ] || [ "${k}" != "UEFI CA 2023" ]; then
-      lxc exec v1 -- efi-readvar -v db | grep -F "${k}"
-    else
-      ! lxc exec v1 -- efi-readvar -v db | grep -F "${k}" || false
-    fi
+    lxc exec v1 -- efi-readvar -v db | grep -F "${k}"
   done
-
-  if [ "${EXPECT_2023_CERTS}" = "false" ]; then
-    echo "::notice::Microsoft UEFI CA 2023 certs missing from KEK and db variables (expected for channel ${LXD_SNAP_CHANNEL})"
-  fi
 }
 
 uefi_vars_tests() {
@@ -130,14 +101,10 @@ echo "==> Verify Microsoft UEFI CA presence in VM"
 efi_sb_key_tests
 
 echo "==> UEFI vars tests"
-if hasNeededAPIExtension instances_uefi_vars; then
-  # XXX: temporarily allow for slower boots (cause: unknown)
-  export MAX_WAIT_SECONDS=180
+# XXX: temporarily allow for slower boots (cause: unknown)
+export MAX_WAIT_SECONDS=180
 
-  uefi_vars_tests
-else
-  echo "Skipping UEFI vars tests as not supported"
-fi
+uefi_vars_tests
 
 # Cleanup
 echo "==> Stopping and deleting VM"

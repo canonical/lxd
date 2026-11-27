@@ -6,13 +6,6 @@ set -eux
 # Install LXD
 install_lxd
 
-if ! hasNeededAPIExtension "cloud_init"; then
-  echo "Skipping cloud-init tests on LXD $(lxd version) as \"cloud-init\" extension is not present"
-  # shellcheck disable=SC2034
-  FAIL=0
-  exit 0
-fi
-
 # Configure LXD
 lxd init --auto
 
@@ -37,11 +30,9 @@ EOF
 echo "==> Create test instance"
 lxc init "${IMAGE}" c1
 
-if hasNeededAPIExtension "cloud_init_ssh_keys"; then
-  lxc profile set default cloud-init.ssh-keys.ignored="root:$(cat ./ignored-key.pub)"
-  lxc config set c1 cloud-init.ssh-keys.ignored="none"
-  lxc config set c1 cloud-init.ssh-keys.mykey="root:$(cat ./additional-key.pub)"
-fi
+lxc profile set default cloud-init.ssh-keys.ignored="root:$(cat ./ignored-key.pub)"
+lxc config set c1 cloud-init.ssh-keys.ignored="none"
+lxc config set c1 cloud-init.ssh-keys.mykey="root:$(cat ./additional-key.pub)"
 
 lxc start c1
 waitInstanceBooted c1
@@ -52,10 +43,8 @@ C_IPV4="$(lxc list c1 -c4 --format=csv | cut -d' ' -f1)"
 [ "$(ssh -o StrictHostKeyChecking=no -q -i ./profile-key "ubuntu@${C_IPV4}" whoami)" = "ubuntu" ]
 ! ssh -o StrictHostKeyChecking=no -q -i ./additional-key "ubuntu@${C_IPV4}" whoami || false
 
-if hasNeededAPIExtension "cloud_init_ssh_keys"; then
-  [ "$(ssh -o StrictHostKeyChecking=no -q -i ./additional-key "root@${C_IPV4}" whoami)" = "root" ]
-  ! ssh -o StrictHostKeyChecking=no -q -i ./ignored-key "root@${C_IPV4}" whoami || false
-fi
+[ "$(ssh -o StrictHostKeyChecking=no -q -i ./additional-key "root@${C_IPV4}" whoami)" = "root" ]
+! ssh -o StrictHostKeyChecking=no -q -i ./ignored-key "root@${C_IPV4}" whoami || false
 
 # Cleanup
 rm ./profile-key ./profile-key.pub ./ignored-key ./ignored-key.pub ./additional-key ./additional-key.pub
@@ -72,9 +61,7 @@ runcmd:
 EOF
 )"
 
-if hasNeededAPIExtension "cloud_init_ssh_keys"; then
-  lxc config set c1 cloud-init.ssh-keys.mykey=root:lp:someuser
-fi
+lxc config set c1 cloud-init.ssh-keys.mykey=root:lp:someuser
 
 lxc start c1
 
@@ -85,9 +72,7 @@ lxc exec c1 -- apt-get install --no-install-recommends --yes curl
 echo "==> Test the cloud-init template is in effect in container"
 USERDATA=$(lxc exec c1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config/cloud-init.user-data)
 echo "${USERDATA}" | grep "## template"
-if hasNeededAPIExtension "cloud_init_ssh_keys"; then
-  echo "${USERDATA}" | grep "lp:someuser"
-fi
+echo "${USERDATA}" | grep "lp:someuser"
 
 # Cleanup
 lxc delete -f c1
@@ -101,14 +86,7 @@ users:
 EOF
 )"
 
-if hasNeededAPIExtension "cloud_init_ssh_keys"; then
-  lxc config set v1 user.user=user
-else
-  lxc config set v1 user.meta-data="$(cat <<EOF
-user_user: user
-EOF
-)"
-fi
+lxc config set v1 user.user=user
 lxc config device add v1 config disk source=cloud-init:config
 lxc start v1
 waitInstanceBooted v1

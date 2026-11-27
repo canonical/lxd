@@ -33,12 +33,8 @@ lxc storage create "${poolName}" "${poolDriver}"
 lxc profile device add default root disk path="/" pool="${poolName}"
 
 # Launch two instances for our LXD cluster and wait for them to be ready.
-lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" member1 --vm -c limits.memory=2GiB
-lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" member2 --vm -c limits.memory=2GiB
-if hasNeededAPIExtension devlxd_images_vm; then
-    lxc config set member1 security.devlxd.images=true
-    lxc config set member2 security.devlxd.images=true
-fi
+lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" member1 --vm -c limits.memory=2GiB -c security.devlxd.images=true
+lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" member2 --vm -c limits.memory=2GiB -c security.devlxd.images=true
 lxc start member1
 lxc start member2
 
