@@ -173,5 +173,15 @@ EOF
   ! lxc storage bucket list "${poolName}" | grep -F "${bucketPrefix}.foo" || false
   ! lxc storage bucket show "${poolName}" "${bucketPrefix}.foo" || false
 
+  # Deleting a key or a bucket works even if it is already gone from radosgw.
+  lxc storage bucket create "${poolName}" "${bucketPrefix}.gone"
+  lxc storage bucket key create "${poolName}" "${bucketPrefix}.gone" gone-key
+  radosgw-admin --cluster ceph --id admin subuser rm --uid "${bucketPrefix}.gone" --subuser gone-key
+  lxc storage bucket key delete "${poolName}" "${bucketPrefix}.gone" gone-key
+  ! lxc storage bucket key show "${poolName}" "${bucketPrefix}.gone" gone-key || false
+  radosgw-admin --cluster ceph --id admin user rm --uid "${bucketPrefix}.gone" --purge-data
+  lxc storage bucket delete "${poolName}" "${bucketPrefix}.gone"
+  ! lxc storage bucket show "${poolName}" "${bucketPrefix}.gone" || false
+
   delete_object_storage_pool "${poolName}"
 }
