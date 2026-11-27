@@ -176,9 +176,18 @@ test_container_devices_nic_p2p_peer() {
   pool=$(lxc profile device get default root pool)
   lxc project create "${proj}" -c features.images=false -c restricted=true -c restricted.devices.nic=managed
   lxc --project "${proj}" profile device add default root disk path="/" pool="${pool}"
-  lxc --project "${proj}" init testimage "${rct1}"
-  lxc --project "${proj}" init testimage "${rct2}"
+  sub_test "Hotplug a peer link under the managed NIC policy"
+  lxc --project "${proj}" launch testimage "${rct1}"
+  lxc --project "${proj}" launch testimage "${rct2}"
   lxc --project "${proj}" config device add "${rct1}" eth1 nic nictype=p2p name=eth1 peer="${rct2}:eth1"
+
+  local waitingPort waitingBridge
+  waitingPort=$(lxc --project "${proj}" config get "${rct1}" volatile.eth1.host_name)
+  waitingBridge=$(basename "$(readlink -e "/sys/class/net/${waitingPort}/master")")
+  p2pPeerBridgeSecure "${waitingBridge}"
+  [ "$(ls "/sys/class/net/${waitingBridge}/brif")" = "${waitingPort}" ]
+  [ -z "$(lxc --project "${proj}" config get "${rct2}" volatile.eth1.peer.link_id || echo fail)" ]
+  lxc --project "${proj}" exec -T -n "${rct1}" -- test -e /sys/class/net/eth1
 
   # A peered p2p NIC is allowed, but other unmanaged NICs are still refused.
   if lxc --project "${proj}" config device add "${rct1}" eth9 nic nictype=p2p ; then
@@ -187,8 +196,6 @@ test_container_devices_nic_p2p_peer() {
   fi
 
   lxc --project "${proj}" config device add "${rct2}" eth1 nic nictype=p2p name=eth1 peer="${rct1}:eth1"
-  lxc --project "${proj}" start "${rct1}"
-  lxc --project "${proj}" start "${rct2}"
 
   linkID=$(lxc --project "${proj}" config get "${rct1}" volatile.eth1.peer.link_id)
   hostName=$(lxc --project "${proj}" config get "${rct1}" volatile.eth1.host_name)
@@ -220,6 +227,9 @@ test_container_devices_nic_p2p_peer() {
   [ "$(lxc --project "${proj}" config get "${rct1}" volatile.eth1.peer.link_id)" = "${linkID}" ]
   [ "$(lxc --project "${proj}" config get "${rct1}" volatile.eth1.host_name)" = "${hostName}" ]
 
+  # The test image does not configure interfaces added after boot.
+  lxc --project "${proj}" exec -T -n "${rct1}" -- ip link set dev eth1 up
+  lxc --project "${proj}" exec -T -n "${rct2}" -- ip link set dev eth1 up
   lxc --project "${proj}" exec "${rct1}" -- ip addr add "${subnet3}.3/24" dev eth1
   lxc --project "${proj}" exec "${rct2}" -- ip addr add "${subnet3}.4/24" dev eth1
   lxc --project "${proj}" exec "${rct1}" -- ping -nc2 -W1 "${subnet3}.4"
@@ -232,6 +242,19 @@ test_container_devices_nic_p2p_peer() {
   [ -e "/sys/class/net/${hostName}" ]
   lxc --project "${proj}" exec "${rct1}" -- ip addr add "${subnet3}.3/24" dev eth1
   lxc --project "${proj}" exec "${rct1}" -- ping -nc2 -W1 "${subnet3}.4"
+
+  sub_test "Hot-remove and reconnect while the other endpoint stays up"
+  lxc --project "${proj}" config device remove "${rct1}" eth1
+  lxc --project "${proj}" exec -T -n "${rct1}" -- test ! -e /sys/class/net/eth1
+  lxc --project "${proj}" exec -T -n "${rct2}" -- test -e /sys/class/net/eth1
+  lxc --project "${proj}" config device add "${rct1}" eth1 nic nictype=p2p name=eth1 peer="${rct2}:eth1"
+  [ "$(lxc --project "${proj}" config get "${rct1}" volatile.eth1.peer.link_id)" = "${linkID}" ]
+  lxc --project "${proj}" exec -T -n "${rct1}" -- ip link set dev eth1 up
+  lxc --project "${proj}" exec -T -n "${rct1}" -- ip addr add "${subnet3}.3/24" dev eth1
+  lxc --project "${proj}" exec -T -n "${rct1}" -- ping -nc2 -W1 "${subnet3}.4"
+  lxc --project "${proj}" config device remove "${rct1}" eth1
+  lxc --project "${proj}" config device remove "${rct2}" eth1
+  [ ! -e "/sys/class/net/${waitingBridge}" ]
 
   # Deleting one instance is allowed while its peer still references it; the
   # surviving instance keeps a dangling peer reference and its link keeps working.
