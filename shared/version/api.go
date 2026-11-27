@@ -520,6 +520,7 @@ var APIExtensions = []string{
 	"cluster_members_state_recursion",
 	"instance_boot_network_family",
 	"instance_nic_p2p_peer",
+	"instance_nic_p2p_peer_hotplug",
 }
 
 func init() {
