@@ -79,6 +79,7 @@ readonly test_group_replicator_storage=(
     "clustering_replicator_snapshot"
     "clustering_replicator_metrics"
     "clustering_replicator_multi_member"
+    "clustering_replicator_cancel"
     "clustering_replicator_evacuated_member"
     "clustering_replicator_vm"
     "clustering_replicator_container"
