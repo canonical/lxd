@@ -5,9 +5,12 @@ install_microceph() {
   local channel="${1}"
   # SNAP_CACHE_DIR is expected to be in the environment if set
 
-  if [ -e test/includes/snap.sh ]; then
+  if ! declare -F install_snap >/dev/null && [ -e test/includes/snap.sh ]; then
       # shellcheck disable=SC1091
       . test/includes/snap.sh
+  fi
+
+  if declare -F install_snap >/dev/null; then
       install_snap snapd latest/beta
       install_snap core24 latest/candidate
       install_snap core26 latest/candidate
@@ -49,7 +52,7 @@ configure_microceph() {
   microceph.ceph config set global osd_memory_target 939524096
   microceph.ceph osd crush rule rm replicated_rule
   microceph.ceph osd crush rule create-replicated replicated default osd
-  for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
+  for flag in nosnaptrim noscrub nodeep-scrub; do
     microceph.ceph osd set "${flag}"
   done
 
@@ -142,15 +145,24 @@ install_ceph_common() {
 
 # wait_for_microceph: wait until MicroCeph is ready
 wait_for_microceph() {
-  # Wait until there are no more "unknowns" pgs
-  for _ in $(seq 60); do
-    if microceph.ceph pg stat | grep -wF unknown; then
-      sleep 1
-    else
+  local ready=false
+
+  # Wait until all PGs are active+clean and RGW is active
+  for _ in $(seq 120); do
+    if microceph.ceph pg stat | grep -E '^[1-9][0-9]* pgs: [1-9][0-9]* active\+clean;' >/dev/null && \
+       microceph.ceph status | grep -E 'rgw: [1-9][0-9]* daemons? active' >/dev/null; then
+      ready=true
       break
     fi
+    sleep 1
   done
+
   microceph.ceph status
+
+  if [ "${ready}" != true ]; then
+    echo "FAIL: MicroCeph did not become ready in time" >&2
+    return 1
+  fi
 }
 
 # setup_microceph: install and configure MicroCeph with the specified disk and OSD count
@@ -178,7 +190,7 @@ setup_microceph() {
   local osd_count="${2:-1}"
   # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
   # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
-  local channel="${3:-tentacle/stable}"
+  local channel="${3:-${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}}"
 
   install_microceph "${channel}"
   configure_microceph "${disk}" "${osd_count}"

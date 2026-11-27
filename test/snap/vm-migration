@@ -6,17 +6,13 @@ set -eux
 # Install dependencies
 install_deps jq
 
-# Install MicroCeph
-install_microceph
-
 # Disk for use by MicroCeph
 backing_file="$(mktemp)"
 truncate -s 20GiB "${backing_file}"
 CEPH_DISK="$(losetup --direct-io=on --show --find "${backing_file}")"
-export CEPH_DISK
 
-# Configure MicroCeph
-configure_microceph
+# Install and configure MicroCeph
+setup_microceph "${CEPH_DISK}"
 
 # Install LXD
 install_lxd
