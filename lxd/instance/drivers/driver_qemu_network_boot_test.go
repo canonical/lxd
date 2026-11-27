@@ -154,10 +154,8 @@ func TestNetworkBootFirmwareArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &qemu{
-				common: common{
-					architecture:   tt.arch,
-					expandedConfig: tt.config,
-				},
+				architecture:   tt.arch,
+				expandedConfig: tt.config,
 			}
 
 			args, err := d.networkBootFirmwareArgs()
