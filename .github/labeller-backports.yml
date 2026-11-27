@@ -1,3 +1,6 @@
+# Labels for branches that receive fixes at every severity.
+# Keep this and labeller-backports-legacy.yml in sync with the LXD security/support
+# policy, including branch EOL and severity-restriction changes.
 backport-6:
   - changed-files:
     - any-glob-to-any-file:

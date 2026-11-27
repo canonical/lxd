@@ -1,0 +1,21 @@
+# Labels for branches that receive only critical and high severity fixes.
+# Currently this is stable-5.21 and older. Keep this list in sync with the LXD
+# security/support policy (for example, when 4.0 goes EOL or stable-6 becomes
+# restricted), and move labels between this file and labeller-backports.yml.
+backports-5.21:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '!lxd/db/cluster/schema.go'
+      - '!lxd/db/node/schema.go'
+
+backports-5.0:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '!lxd/db/cluster/schema.go'
+      - '!lxd/db/node/schema.go'
+
+backports-4.0:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '!lxd/db/cluster/schema.go'
+      - '!lxd/db/node/schema.go'

@@ -4,6 +4,12 @@ on:
   # from forks (pull_request lacks write access in that case). dangerous-triggers
   # does not apply: neither this workflow nor the workflows it calls check out PR code.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
 
 permissions: {}
 
@@ -37,6 +43,23 @@ jobs:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           sync-labels: true
           configuration-path: '.github/labeller-backports.yml'
+
+      # Keep legacy labels outside the common sync config so moderate/low PRs retain
+      # human-applied legacy labels.
+      - name: Label legacy backports (critical/high)
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        if: >-
+          ${{
+            github.repository == 'canonical/lxd-private' &&
+            github.base_ref == 'main' &&
+            github.actor != 'dependabot[bot]' &&
+            (contains(github.event.pull_request.labels.*.name, 'severity-critical') ||
+            contains(github.event.pull_request.labels.*.name, 'severity-high'))
+          }}
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          sync-labels: true
+          configuration-path: '.github/labeller-backports-legacy.yml'
 
   # Run after the labeler: labels it adds with GITHUB_TOKEN fire no events for other workflows.
   domain-label:
