@@ -8846,11 +8846,24 @@ func (d *qemu) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.Fil
 	}
 
 	args := lxd.InstanceExecArgs{
-		Stdin:    stdin,
-		Stdout:   stdout,
-		Stderr:   stderr,
 		DataDone: dataDone,
 		Control:  controlHandler,
+	}
+
+	// Only set the streams that were given. A nil *os.File stored in the io.Reader or io.Writer
+	// field is not a nil interface, so the client would use it rather than discard the output.
+	// Writing to it fails straight away, which ends the data transfer and closes the control
+	// connection, and the agent then kills the command.
+	if stdin != nil {
+		args.Stdin = stdin
+	}
+
+	if stdout != nil {
+		args.Stdout = stdout
+	}
+
+	if stderr != nil {
+		args.Stderr = stderr
 	}
 
 	// Always needed for VM exec, as even for non-websocket requests from the client we need to connect the

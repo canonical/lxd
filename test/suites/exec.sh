@@ -39,6 +39,30 @@ test_exec() {
   lxc delete --force x1
 }
 
+test_exec_vm() {
+  ensure_import_ubuntu_vm_image
+
+  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+
+  # Check non-websocket based exec lets the command run to completion.
+  # The command used to be killed (exit 137) before or while it ran.
+  for _ in $(seq 1 10); do
+    lxc query -X POST --wait -d '{"command":["sleep","1"],"record-output":false}' /1.0/instances/v1/exec | jq --exit-status '.metadata.return == 0'
+    lxc query -X POST --wait -d '{"command":["sh","-c","exit 3"],"record-output":false}' /1.0/instances/v1/exec | jq --exit-status '.metadata.return == 3'
+  done
+
+  lxc query -X POST --wait -d '{"command":["touch","/root/foo1"],"record-output":false}' /1.0/instances/v1/exec | jq --exit-status '.metadata.return == 0'
+  lxc exec v1 -- stat /root/foo1
+
+  # Check output is still recorded.
+  opID="$(lxc query -X POST --wait -d '{"command":["echo","hello"],"record-output":true}' /1.0/instances/v1/exec | jq --raw-output --exit-status .id)"
+  stdOutURL="$(lxc query "/1.0/operations/${opID}" | jq --raw-output --exit-status '.metadata.output["1"]')"
+  [ "$(lxc query "${stdOutURL}")" = "hello" ]
+
+  lxc delete --force v1
+}
+
 test_concurrent_exec() {
   ensure_import_testimage
 

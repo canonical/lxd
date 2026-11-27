@@ -106,6 +106,7 @@ readonly test_group_instance=(
     "devlxd_vm"
     "exec"
     "exec_exit_code"
+    "exec_vm"
     "lxd_benchmark_basic"
     "vm_empty"
     "vm_network_boot"
