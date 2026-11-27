@@ -4,6 +4,12 @@ on:
   # from forks (pull_request lacks write access in that case). dangerous-triggers
   # does not apply: neither this workflow nor the workflows it calls check out PR code.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
 
 permissions: {}
 
@@ -37,6 +43,113 @@ jobs:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           sync-labels: true
           configuration-path: '.github/labeller-backports.yml'
+
+      # Keep legacy labels outside the common sync config so moderate/low PRs retain
+      # human-applied legacy labels.
+      - name: Label legacy backports (critical/high)
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        if: >-
+          ${{
+            github.repository == 'canonical/lxd-private' &&
+            github.base_ref == 'main' &&
+            github.actor != 'dependabot[bot]' &&
+            (contains(github.event.pull_request.labels.*.name, 'severity-critical') ||
+            contains(github.event.pull_request.labels.*.name, 'severity-high'))
+          }}
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          sync-labels: true
+          configuration-path: '.github/labeller-backports-legacy.yml'
+
+  embargo-wave:
+    if: ${{ github.repository == 'canonical/lxd-private' }}
+    permissions: {}
+    name: Embargo wave
+    runs-on: ubuntu-slim
+    steps:
+      - name: Check embargo wave
+        env:
+          CURRENT_EMBARGO_WAVE: ${{ vars.CURRENT_EMBARGO_WAVE }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels) }}
+        run: |
+          set -euo pipefail
+
+          error_reported=false
+          fail() {
+            echo "::error::$1"
+            error_reported=true
+            exit 1
+          }
+
+          report_unexpected_error() {
+            status=$?
+            if [[ "${status}" -ne 0 && "${error_reported}" != "true" ]]; then
+              echo "::error::Embargo wave validation failed unexpectedly."
+            fi
+          }
+
+          trap report_unexpected_error EXIT
+
+          validate_date() {
+            local value="$1"
+            local description="$2"
+            local parsed
+
+            if [[ ! "${value}" =~ ^20[23][0-9]-[0-9]{2}-[0-9]{2}$ ]]; then
+              fail "${description} must use a date from 2020-2039 in YYYY-MM-DD format."
+            fi
+
+            if ! parsed="$(date --utc --date="${value}" +%F 2>/dev/null)" || [[ "${parsed}" != "${value}" ]]; then
+              fail "${description} must be a real calendar date."
+            fi
+          }
+
+          if [[ -z "${CURRENT_EMBARGO_WAVE}" ]]; then
+            fail "CURRENT_EMBARGO_WAVE is not set."
+          fi
+
+          validate_date "${CURRENT_EMBARGO_WAVE}" "CURRENT_EMBARGO_WAVE"
+
+          if ! jq --exit-status '
+            type == "array" and
+            all(.[]; type == "object" and (.name | type == "string"))
+          ' <<< "${PR_LABELS}" >/dev/null; then
+            fail "Could not read the pull request labels."
+          fi
+
+          mapfile -t labels < <(jq -r '.[].name' <<< "${PR_LABELS}")
+          embargo_dates=()
+          severity_labels=()
+
+          for label in "${labels[@]}"; do
+            if [[ "${label}" == embargo-* ]]; then
+              if [[ ! "${label}" =~ ^embargo-(20[23][0-9]-[0-9]{2}-[0-9]{2})$ ]]; then
+                fail "Every embargo label must match embargo-YYYY-MM-DD for a year from 2020-2039."
+              fi
+
+              embargo_date="${BASH_REMATCH[1]}"
+              validate_date "${embargo_date}" "The embargo label date"
+              embargo_dates+=("${embargo_date}")
+            elif [[ "${label}" == severity-* ]]; then
+              if [[ ! "${label}" =~ ^severity-(critical|high|moderate|low)$ ]]; then
+                fail "Every severity label must match severity-critical, severity-high, severity-moderate, or severity-low."
+              fi
+
+              severity_labels+=("${label}")
+            fi
+          done
+
+          if [[ "${#embargo_dates[@]}" -ne 1 ]]; then
+            fail "The pull request must have exactly one embargo-YYYY-MM-DD label."
+          fi
+
+          if [[ "${#severity_labels[@]}" -ne 1 ]]; then
+            fail "The pull request must have exactly one severity label."
+          fi
+
+          if [[ "${embargo_dates[0]}" > "${CURRENT_EMBARGO_WAVE}" ]]; then
+            fail "The pull request embargo wave is after CURRENT_EMBARGO_WAVE."
+          fi
 
   # Run after the labeler: labels it adds with GITHUB_TOKEN fire no events for other workflows.
   domain-label:
