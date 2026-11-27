@@ -73,16 +73,14 @@ test_container_devices_nic_p2p_peer_vm() {
   lxc init ubuntu-vm "${vm1}" --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   lxc init ubuntu-vm "${vm2}" --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
 
-  # Configure both sides of the pair. The MAC is used to find the interface inside
-  # the guest, where predictable network naming may not use the configured name.
-  lxc config device add "${vm1}" eth1 nic nictype=p2p name=eth1 hwaddr="${mac1}" peer="${vm2}:eth1"
-  lxc config device add "${vm2}" eth1 nic nictype=p2p name=eth1 hwaddr="${mac2}" peer="${vm1}:eth1"
-
-  # Start in reverse order to prove that start order does not matter.
   lxc start "${vm2}"
   waitInstanceReady "${vm2}"
   lxc start "${vm1}"
   waitInstanceReady "${vm1}"
+
+  sub_test "Hotplug both VM endpoints"
+  lxc config device add "${vm2}" eth1 nic nictype=p2p name=eth1 hwaddr="${mac2}" peer="${vm1}:eth1"
+  lxc config device add "${vm1}" eth1 nic nictype=p2p name=eth1 hwaddr="${mac1}" peer="${vm2}:eth1"
 
   sleep 1
   if ! p2p_peer_vm_find_ifaces; then
@@ -161,6 +159,15 @@ test_container_devices_nic_p2p_peer_vm() {
     echo "peer was changed while the instance was running"
     false
   fi
+
+  sub_test "Hot-remove and reconnect a VM endpoint"
+  lxc config device remove "${vm2}" eth1
+  lxc exec -T -n "${vm1}" -- /usr/bin/test -e "/sys/class/net/${iface1}"
+  lxc config device add "${vm2}" eth1 nic nictype=p2p name=eth1 hwaddr="${mac2}" peer="${vm1}:eth1"
+  p2p_peer_vm_find_ifaces
+  lxc exec -T -n "${vm2}" -- /bin/ip link set "${iface2}" up
+  lxc exec -T -n "${vm2}" -- /bin/ip addr add "${subnet1}.2/24" dev "${iface2}"
+  p2p_peer_vm_connect "${vm1}" "${subnet1}.2"
 
   test_container_devices_nic_p2p_peer_vm_cleanup
   # shellcheck disable=SC2064 # Restore the captured harness trap.
