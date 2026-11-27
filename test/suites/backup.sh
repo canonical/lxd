@@ -1199,6 +1199,42 @@ test_backup_export_import_instance_only() {
   lxc delete c1
 }
 
+test_backup_import_root_size_override() {
+  local poolName poolDriver volumeSize
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
+  poolDriver="$(storage_backend "${LXD_DIR}")"
+
+  # The pool's default volume size is only enforced by these drivers.
+  if [ "${poolDriver}" != "zfs" ] && [ "${poolDriver}" != "btrfs" ] && [ "${poolDriver}" != "lvm" ] && [ "${poolDriver}" != "ceph" ]; then
+    export TEST_UNMET_REQUIREMENT="${poolDriver} driver does not enforce the volume size"
+    return 0
+  fi
+
+  ensure_import_testimage
+
+  # Export an instance whose root disk comes from the default profile.
+  lxc init testimage c1
+  lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
+  lxc delete c1
+
+  # Make the pool's default volume size too small to unpack the backup into.
+  volumeSize="$(lxc storage get "${poolName}" volume.size)"
+  lxc storage set "${poolName}" volume.size=1MiB
+
+  # The root disk size override must be used when unpacking the backup.
+  lxc import "${LXD_DIR}/c1.tar.gz" -d root,size=32MiB
+  [ "$(lxc config device get c1 root size)" = "32MiB" ]
+
+  if [ -n "${volumeSize}" ]; then
+    lxc storage set "${poolName}" volume.size="${volumeSize}"
+  else
+    lxc storage unset "${poolName}" volume.size
+  fi
+
+  rm "${LXD_DIR}/c1.tar.gz"
+  lxc delete c1
+}
+
 test_backup_metadata() {
   ensure_import_testimage
 
