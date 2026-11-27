@@ -18,6 +18,7 @@ test_storage_driver_zfs() {
   do_zfs_bucket_dataset_cleanup
   do_zfs_image_variants
   do_zfs_image_variant_blocksize
+  do_zfs_vm_delete_retry
 }
 
 do_zfs_delegate() {
@@ -677,4 +678,46 @@ zfs_image_variant_tombstone_count() {
 
   out=$(zfs list -H -o name -t volume -d 1 "${parent}")
   echo "${out}" | awk -v stem="${basename}" '$0 ~ "/" stem "-[0-9a-f-]{36}$" { c++ } END { print c+0 }'
+}
+
+do_zfs_vm_delete_retry() {
+  local storage_pool mnt busy_pid
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  sub_test "Retrying a failed VM deletion removes its filesystem dataset"
+
+  lxc init --vm --empty v1 -d "${SMALL_ROOT_DISK}"
+  zfs list "${storage_pool}/virtual-machines/v1.block"
+  zfs list "${storage_pool}/virtual-machines/v1"
+
+  echo "Keep the VM filesystem dataset busy so the deletion fails part way."
+  # A mounted dataset alone is not enough as `zfs destroy` unmounts it first, so hold a reference inside the mount.
+  mnt="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  mount -t zfs "${storage_pool}/virtual-machines/v1" "${mnt}"
+  (cd "${mnt}" && exec sleep 600) &
+  busy_pid="$!"
+  if lxc delete v1; then
+    echo "ERROR: Deleting a VM with a busy filesystem dataset should fail"
+    exit 1
+  fi
+
+  echo "The block dataset is gone but the filesystem dataset is left behind."
+  if zfs list "${storage_pool}/virtual-machines/v1.block"; then
+    echo "ERROR: The VM block dataset should have been deleted"
+    exit 1
+  fi
+
+  zfs list "${storage_pool}/virtual-machines/v1"
+
+  kill "${busy_pid}"
+  wait "${busy_pid}" || true
+  umount "${mnt}"
+  rmdir "${mnt}"
+
+  echo "Retrying the deletion must also remove the filesystem dataset."
+  lxc delete v1
+  if zfs list "${storage_pool}/virtual-machines/v1"; then
+    echo "ERROR: The VM filesystem dataset was left behind"
+    exit 1
+  fi
 }
