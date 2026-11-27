@@ -759,7 +759,7 @@ func (d *nicP2P) Stop() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// stopPeer stops a peered p2p NIC. The private bridge is retained while the pair exists.
+// stopPeer stops a peered p2p NIC.
 func (d *nicP2P) stopPeer() (*deviceConfig.RunConfig, error) {
 	// Let the container/VM driver stop the instance side, then remove the host-side bridge
 	// port in postStopPeer. Removing the host-side port also destroys the veth peer end, so
@@ -794,37 +794,9 @@ func (d *nicP2P) postStop() error {
 }
 
 // postStopPeer is run after a peered p2p NIC is removed from the instance.
-// The private bridge is retained so that the peer side can keep using it.
+// Keep the link ID so either endpoint can recreate the bridge on its next start.
 func (d *nicP2P) postStopPeer() error {
-	if d.inst == nil {
-		return nil
-	}
-
-	v := d.volatileGet()
-	linkID := v["peer.link_id"]
-	hostName := v["host_name"]
-
-	// The port is gone, so its recorded name is no longer useful.
-	defer func() {
-		_ = d.volatileSet(map[string]string{
-			"host_name": "",
-		})
-	}()
-
-	if linkID == "" || hostName == "" {
-		return nil
-	}
-
-	names := nicP2PPeerNamesFor(d.inst.ID(), linkID)
-
-	unlock, err := d.peerLock()
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	return networkDetachP2PPort(names.Bridge, hostName, names.PortAlias)
+	return d.detachPeerLink(false)
 }
 
 // peerLock acquires the process-local lock for this device pair. It returns a no-op
@@ -887,6 +859,11 @@ func (d *nicP2P) Remove() error {
 // It is also used at start or stop time when the peer option was unset from a device
 // that was already started, so that the host interfaces are not leaked.
 func (d *nicP2P) removePeerLink() error {
+	return d.detachPeerLink(true)
+}
+
+// detachPeerLink detaches this endpoint and removes the bridge and its filter when empty.
+func (d *nicP2P) detachPeerLink(forgetLink bool) error {
 	if d.inst == nil || d.inst.ID() == 0 {
 		return nil
 	}
@@ -913,28 +890,24 @@ func (d *nicP2P) removePeerLink() error {
 		return err
 	}
 
-	// If the other endpoint is still attached, keep the bridge and its filter in place.
-	// The peer's own removal cleans them up later. This allows this instance to be deleted
-	// or have its peer option unset without disrupting a running peer.
-	inUse, err := networkP2PBridgeInUse(names.Bridge, linkID)
+	// Check under the same lock as start, so another endpoint cannot attach
+	// between the last-port check and bridge removal.
+	empty, err := networkRemoveEmptyP2PBridge(names.Bridge, names.BridgeAlias)
 	if err != nil {
 		return err
 	}
 
-	if !inUse {
-		err = networkRemoveP2PBridge(names.Bridge, names.BridgeAlias, nicP2PPortAliasPrefix+linkID+":")
-		if err != nil {
-			return err
-		}
-
+	if empty {
 		err = d.state.Firewall.BridgeClearLocalFilter(names.Bridge)
 		if err != nil {
 			return err
 		}
 	}
 
-	return d.volatileSet(map[string]string{
-		"peer.link_id": "",
-		"host_name":    "",
-	})
+	changes := map[string]string{"host_name": ""}
+	if forgetLink {
+		changes["peer.link_id"] = ""
+	}
+
+	return d.volatileSet(changes)
 }
