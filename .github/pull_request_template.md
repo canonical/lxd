@@ -1,15 +1,12 @@
-<!--
-Note: Fill in the template briefly and clearly. Include the context reviewers need, without unnecessary detail.
--->
 ## What changed
 
-- [Summarize work items, including drive-bys]
+- [Concisely summarize work items]
 
 ## Why
 
-- [Explain why this change is needed and what problem it solves; include links to any relevant issues]
+- [Concisely explain why this change is needed and what problem it solves; include links to relevant issues]
 
 ## Checklist
 
-- [ ] I have read the [contributing guidelines](https://github.com/canonical/lxd/blob/main/CONTRIBUTING.md) and attest that all commits in this PR are [signed off](https://github.com/canonical/lxd/blob/main/CONTRIBUTING.md#including-a-signed-off-by-line-in-your-commits), [cryptographically signed](https://github.com/canonical/lxd/blob/main/CONTRIBUTING.md#commit-signature-verification), and follow this project's [commit structure](https://github.com/canonical/lxd/blob/main/CONTRIBUTING.md#commit-structure).
+- [ ] All commits in this PR are signed off, cryptographically signed, and structured according to the [LXD contributing guidelines](https://github.com/canonical/lxd/blob/main/CONTRIBUTING.md).
 - [ ] I have checked and added or updated relevant documentation.
