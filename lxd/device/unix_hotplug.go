@@ -157,7 +157,19 @@ func (d *unixHotplug) Register() error {
 			}
 		case "remove":
 			relativeTargetPath := strings.TrimPrefix(e.Path, "/")
-			err := unixDeviceRemove(devicesPath, "unix", deviceName, relativeTargetPath, &runConf)
+
+			// Vendor and product aren't known on remove, so only handle the event if this
+			// device set up a file for the path when it was added.
+			found, err := unixDeviceHasFile(devicesPath, "unix", deviceName, relativeTargetPath)
+			if err != nil {
+				return nil, err
+			}
+
+			if !found {
+				return nil, nil
+			}
+
+			err = unixDeviceRemove(devicesPath, "unix", deviceName, relativeTargetPath, &runConf)
 			if err != nil {
 				return nil, err
 			}

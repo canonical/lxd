@@ -57,6 +57,43 @@ func TestUnixDeviceRemove(t *testing.T) {
 	}
 }
 
+func TestUnixDeviceHasFile(t *testing.T) {
+	for _, tt := range unixDeviceFileTests {
+		t.Run(tt.name, func(t *testing.T) {
+			devicesPath := t.TempDir()
+			for _, file := range tt.files {
+				err := os.WriteFile(filepath.Join(devicesPath, file), nil, 0600)
+				require.NoError(t, err)
+			}
+
+			found, err := unixDeviceHasFile(devicesPath, "unix", tt.deviceName, tt.optPrefix)
+			require.NoError(t, err)
+			assert.True(t, found)
+
+			// Another device on the same instance never set up this path.
+			found, err = unixDeviceHasFile(devicesPath, "unix", "other", tt.optPrefix)
+			require.NoError(t, err)
+			assert.False(t, found)
+		})
+	}
+
+	t.Run("Path not set up by the device", func(t *testing.T) {
+		devicesPath := t.TempDir()
+		err := os.WriteFile(filepath.Join(devicesPath, "unix.hp.dev-input-event3"), nil, 0600)
+		require.NoError(t, err)
+
+		found, err := unixDeviceHasFile(devicesPath, "unix", "hp", "dev/input/event4")
+		require.NoError(t, err)
+		assert.False(t, found)
+	})
+
+	t.Run("Missing devices directory", func(t *testing.T) {
+		found, err := unixDeviceHasFile(filepath.Join(t.TempDir(), "missing"), "unix", "hp", "dev/input/event3")
+		require.NoError(t, err)
+		assert.False(t, found)
+	})
+}
+
 func TestUnixDeviceDeleteFiles(t *testing.T) {
 	s := &state.State{OS: &sys.OS{}}
 
