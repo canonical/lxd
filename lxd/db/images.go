@@ -306,7 +306,7 @@ WHERE images.fingerprint LIKE ?
 // the given image, or an empty string if the image is already available on this
 // node.
 //
-// If the image is not available on any online node, an error is returned.
+// If the image is not available on any online node, ErrImageNotAvailable is returned.
 func (c *ClusterTx) LocateImage(ctx context.Context, fingerprint string) (string, error) {
 	stmt := `
 SELECT nodes.address FROM nodes
@@ -349,7 +349,7 @@ WHERE images.fingerprint = ?
 	}
 
 	if len(addresses) == 0 {
-		return "", errors.New("Image not available on any online member")
+		return "", ErrImageNotAvailable
 	}
 
 	if slices.Contains(addresses, localAddress) {

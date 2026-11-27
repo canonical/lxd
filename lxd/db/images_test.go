@@ -42,7 +42,7 @@ func TestLocateImage(t *testing.T) {
 
 		address, err = tx.LocateImage(ctx, "abc")
 		require.Empty(t, address)
-		require.EqualError(t, err, "Image not available on any online member")
+		require.ErrorIs(t, err, db.ErrImageNotAvailable)
 
 		return nil
 	})
