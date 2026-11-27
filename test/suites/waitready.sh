@@ -6,7 +6,7 @@ test_waitready() {
   br_name="lxdt$$"
 
   if [ "${lxd_backend}" = "lvm" ]; then
-    lxc storage create "${storage_pool}" "${lxd_backend}" volume.size=24MiB size=1GiB
+    lxc storage create "${storage_pool}" "${lxd_backend}" volume.size="${DEFAULT_VOLUME_SIZE}" size=1GiB
   else
     lxc storage create "${storage_pool}" "${lxd_backend}"
   fi

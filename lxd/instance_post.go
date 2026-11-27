@@ -783,7 +783,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 // Migrate an instance to another cluster node (supports both local and remote storage).
 // Source and target members must be online.
 func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, req api.InstancePost, targetArgs *db.InstanceArgs, srcMember db.NodeInfo, newMember db.NodeInfo, targetGroupName string) (func(ctx context.Context, op *operations.Operation) error, error) {
-	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
+	srcMemberOffline := srcMember.Name != s.ServerName && srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
 	// redirection due to the source member being offline.
@@ -1184,7 +1184,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 	}
 
 	// Only use instancePostClusteringMigrateWithRemoteStorage when source member is offline and storage location is remote.
-	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Remote {
+	if srcMember.Name != s.ServerName && srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Remote {
 		newInstName := req.Name
 		if targetArgs != nil && targetArgs.Name != "" {
 			newInstName = targetArgs.Name
@@ -1230,7 +1230,7 @@ func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst in
 		}
 
 		return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, sourceProject, inst.Name(), updateReq, inst.LocalConfig())
+			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, sourceProject, inst.Name(), updateReq, inst.LocalConfig(), true)
 		})
 	}
 

@@ -911,6 +911,56 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	return nil
 }
 
+// BridgeSetupLocalFilter drops all frames delivered to the local port of a private bridge.
+func (d Xtables) BridgeSetupLocalFilter(bridgeName string) error {
+	ebtablesMu.Lock()
+	defer ebtablesMu.Unlock()
+
+	// Preserve an existing drop rule. Removing and re-adding it would leave an active
+	// bridge unprotected if the insertion fails, and the bridge may still be in use by
+	// the peer instance.
+	out, err := shared.RunCommand(context.TODO(), "ebtables", "-L", "INPUT", "--Lx")
+	if err != nil {
+		return fmt.Errorf("Failed listing ebtables INPUT chain: %w", err)
+	}
+
+	rule := "--logical-in " + bridgeName + " -j DROP"
+	if strings.Contains(out, rule) {
+		return nil
+	}
+
+	// Insert first so the drop is evaluated before any per-device accept rule.
+	_, err = shared.RunCommand(context.TODO(), "ebtables", "-I", "INPUT", "1", "--logical-in", bridgeName, "-j", "DROP")
+	if err != nil {
+		return fmt.Errorf("Failed adding ebtables local-in drop for bridge %q: %w", bridgeName, err)
+	}
+
+	return nil
+}
+
+// BridgeClearLocalFilter removes the local-port drop for a private bridge.
+func (d Xtables) BridgeClearLocalFilter(bridgeName string) error {
+	ebtablesMu.Lock()
+	defer ebtablesMu.Unlock()
+
+	out, err := shared.RunCommand(context.TODO(), "ebtables", "-L", "INPUT", "--Lx")
+	if err != nil {
+		return fmt.Errorf("Failed listing ebtables INPUT chain: %w", err)
+	}
+
+	rule := "--logical-in " + bridgeName + " -j DROP"
+	if !strings.Contains(out, rule) {
+		return nil
+	}
+
+	_, err = shared.RunCommand(context.TODO(), "ebtables", "-D", "INPUT", "--logical-in", bridgeName, "-j", "DROP")
+	if err != nil {
+		return fmt.Errorf("Failed removing ebtables local-in drop for bridge %q: %w", bridgeName, err)
+	}
+
+	return nil
+}
+
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {

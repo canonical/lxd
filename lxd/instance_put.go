@@ -133,7 +133,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				apiProfiles = append(apiProfiles, *apiProfile)
 			}
 
-			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, projectName, name, configRaw, inst.LocalConfig())
+			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, projectName, name, configRaw, inst.LocalConfig(), false)
 		})
 		if err != nil {
 			return response.SmartError(err)
@@ -251,7 +251,7 @@ func instanceSnapRestore(ctx context.Context, s *state.State, projectName string
 		// as raw.lxc or raw.qemu after the instance was moved into a restricted project).
 		// Restoring re-applies the snapshot's config to the instance, so it must be
 		// validated the same way a direct instance update is.
-		return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, projectName, name, snapConfig, inst.LocalConfig())
+		return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, projectName, name, snapConfig, inst.LocalConfig(), true)
 	})
 	if err != nil {
 		return err

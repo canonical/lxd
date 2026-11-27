@@ -123,7 +123,7 @@ See [this Discourse post](https://discuss.linuxcontainers.org/t/help-help-help-c
 
 ## Why does LXD not start on Ubuntu 22.04 LTS or earlier?
 
-If you are running LXD on Ubuntu 22.04 LTS or earlier, you might be missing support for ZFS 2.2 in the kernel (see the {ref}`requirements <requirements-zfs>`).
+If you are running LXD on Ubuntu 22.04 LTS or earlier, you might be missing support for ZFS 2.2 in the kernel (see the {ref}`requirements <requirements-kernel>`).
 
 If LXD fails to start, check the `/var/snap/lxd/common/lxd/logs/lxd.log` log file for the following error to see if the reason is missing ZFS support:
 

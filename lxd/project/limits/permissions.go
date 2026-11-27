@@ -108,7 +108,7 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo,
 
 	// Special case restriction checks on volatile.* keys.
 	err = checkRestrictionsOnVolatileConfig(
-		info.Project, instanceType, req.Name, req.Config, map[string]string{}, strip)
+		info.Project, instanceType, req.Name, req.Config, map[string]string{}, strip, false)
 	if err != nil {
 		return err
 	}
@@ -193,8 +193,10 @@ func getInstanceCountLimit(info *ProjectInfo, instanceType instancetype.Type) (i
 	return instanceCount, -1, nil
 }
 
-// Check restrictions on setting volatile.* keys.
-func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string, strip bool) error {
+// Check restrictions on setting, changing and removing volatile.* keys.
+// An update driven by LXD itself (for example a snapshot restore) can pass allowRemoval to
+// drop keys that a user is not allowed to set or change.
+func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string, strip bool, allowRemoval bool) error {
 	if project.Config["restrict"] == "false" {
 		return nil
 	}
@@ -258,6 +260,28 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 		if currentValue != value {
 			return fmt.Errorf("Changing %q on %s %q in project %q is forbidden", key, instanceType, instanceName, project.Name)
+		}
+	}
+
+	if strip || allowRemoval {
+		return nil
+	}
+
+	// Removing a key is as sensitive as setting it, so check for keys that are present in
+	// the current config but absent from the submitted config.
+	for key := range currentConfig {
+		if !strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
+			continue
+		}
+
+		// Allow given safe volatile keys to be removed
+		if isSafeKey(key) {
+			continue
+		}
+
+		_, ok := config[key]
+		if !ok {
+			return fmt.Errorf("Removing %q from %s %q in project %q is forbidden", key, instanceType, instanceName, project.Name)
 		}
 	}
 
@@ -737,12 +761,18 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 
 		case "restricted.devices.nic":
 			devicesChecks["nic"] = append(devicesChecks["nic"], func(device map[string]string) error {
+				// A peered p2p NIC connects two NICs in the project through a private
+				// bridge that LXD owns. It does not attach to a host network, so it is
+				// allowed in the same way as a managed network device. The peer option
+				// is only valid on p2p NICs, which device validation enforces.
+				peeredP2P := device["nictype"] == "p2p" && device["peer"] != ""
+
 				// Check if the NICs are allowed at all.
 				switch restrictionValue {
 				case "block":
 					return errors.New("Network devices are forbidden")
 				case "managed":
-					if device["network"] == "" {
+					if !peeredP2P && device["network"] == "" {
 						return errors.New("Only managed network devices are allowed")
 					}
 				}
@@ -1018,7 +1048,10 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
+//
+// allowVolatileRemoval indicates that the update is driven by LXD itself (for example a
+// snapshot restore) and may drop volatile keys that a user cannot set, change or remove.
+func AllowInstanceUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string, allowVolatileRemoval bool) error {
 	var updatedInstance *api.Instance
 
 	info, err := FetchProject(ctx, tx, projectName, true)
@@ -1050,7 +1083,7 @@ func AllowInstanceUpdate(ctx context.Context, globalConfig *clusterConfig.Config
 	// Special case restriction checks on volatile.* keys, since we want to
 	// detect if they were changed or added.
 	err = checkRestrictionsOnVolatileConfig(
-		info.Project, instType, updatedInstance.Name, req.Config, currentConfig, false)
+		info.Project, instType, updatedInstance.Name, req.Config, currentConfig, false, allowVolatileRemoval)
 	if err != nil {
 		return err
 	}

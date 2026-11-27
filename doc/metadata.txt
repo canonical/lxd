@@ -1142,6 +1142,19 @@ Consult the kernel qdisc documentation before setting this value.
 
 ```
 
+```{config:option} peer device-nic-p2p-device-conf
+:managed: "no"
+:shortdesc: "Peer instance and device to connect to"
+:type: "string"
+Pair this NIC with a `p2p` NIC on another instance. The value is `<instance_name>:<device_name>`.
+Both devices must reference each other, and both instances must be in the same project and on the same cluster member.
+The peers are connected by a private, host-isolated bridge that carries untagged traffic and 802.1Q VLANs.
+LXD installs a local-in drop rule on the bridge so instance traffic is not delivered to the host network stack.
+Multiple peer links can be configured between the same two instances; each device pair gets its own private bridge.
+The host-side bridge name is derived only from a LXD-generated link ID that is shared by both devices, and each side's host port name is generated randomly by LXD, so instance configuration cannot influence host networking. LXD stores the link ID in `volatile.<device>.peer.link_id` and the port name in `volatile.<device>.host_name`. This makes the feature safe to use from restricted projects.
+This option cannot be used with `host_name`, `mtu`, `queue.tx.length`, host routes or host-side traffic limits.
+```
+
 ```{config:option} queue.tx.length device-nic-p2p-device-conf
 :shortdesc: "Transmit queue length for the NIC"
 :type: "integer"
@@ -4686,6 +4699,9 @@ Possible values are `allow`, `block`, or `managed`.
 
 - When set to `block`, this option prevents using all network devices.
 - When set to `managed`, this option allows using network devices only if `network=` is set.
+  The only exception is a `p2p` network device that sets `peer`: a peered `p2p` NIC does not
+  attach to a host network, because it connects two instances in the project through a private
+  bridge owned by LXD. A `p2p` NIC that does not set `peer` is still refused.
 - When set to `allow`, there is no restriction on which network devices can be used.
 ```
 

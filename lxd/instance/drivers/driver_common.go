@@ -812,6 +812,17 @@ func (d *common) deleteAttachedVolumeSnapshots(ctx context.Context, snapInst ins
 	return nil
 }
 
+// validatePeerRename checks that the instance is not participating in a peer relationship.
+func (d *common) validatePeerRename() error {
+	for deviceName, devConfig := range d.LocalDevices() {
+		if devConfig["type"] == "nic" && devConfig["peer"] != "" {
+			return fmt.Errorf("Instance cannot be renamed while device %q is peered; unset its peer option first", deviceName)
+		}
+	}
+
+	return nil
+}
+
 // deleteCommon handles common delete logic for LXC and QEMU instances.
 //
 // It performs the following shared operations:
@@ -2199,9 +2210,26 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 		// If a device was returned from deviceLoad even if validation fails, then try to stop and remove.
 		if dev != nil {
-			err = dev.PreRemoveCheck()
-			if err != nil {
-				return nil, fmt.Errorf("Failed pre-remove check for device %q: %w", dev.Name(), err)
+			// A peered p2p device is replaced (removed and re-added) when its peer option
+			// changes. Allow the removal half of that replacement even though the peer still
+			// references the old device config; the add half re-establishes the relationship.
+			// Changing the peer option is only allowed while both instances are stopped, so
+			// restrict the exception to that specific transition. Any other replacement of a
+			// peered NIC (for example changing hwaddr or converting it to another NIC type)
+			// must still pass the pre-remove check so that it cannot remove the bridge and the
+			// peer's port while the pair is in use.
+			newDev, readding := addDevices[entry.Name]
+			oldPeer := entry.Config["peer"]
+			newPeer := newDev["peer"]
+			peerChanged := readding && entry.Config["type"] == "nic" && newDev["type"] == "nic" && oldPeer != newPeer
+			peerToPeer := newPeer != "" || newDev["nictype"] == "p2p"
+			skipPreRemoveCheck := !instanceRunning && peerChanged && peerToPeer && (oldPeer != "" || newPeer != "")
+
+			if !skipPreRemoveCheck {
+				err = dev.PreRemoveCheck()
+				if err != nil {
+					return nil, fmt.Errorf("Failed pre-remove check for device %q: %w", dev.Name(), err)
+				}
 			}
 
 			if instanceRunning {
@@ -2594,7 +2622,7 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.project, d.Type(), d.localDevices, d.expandedDevices)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), d.Name(), d.localDevices, d.expandedDevices)
 		if err != nil {
 			return fmt.Errorf("Invalid expanded devices: %w", err)
 		}

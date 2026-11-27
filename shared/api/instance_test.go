@@ -105,3 +105,62 @@ func TestApplyInstanceRefreshConfigMismatchedRootDeviceKey(t *testing.T) {
 		t.Fatalf("Expected root pool to remain unchanged when root device keys differ, got %q", instance.Devices["root-source"]["pool"])
 	}
 }
+
+func TestInstanceCreateConfigKeyPolicyRemovesPeerLinkID(t *testing.T) {
+	config := map[string]string{
+		"user.foo":                   "bar",
+		"volatile.eth1.peer.link_id": "link-id",
+		"volatile.eth1.host_name":    "veth1234",
+		"volatile.uuid":              "uuid",
+	}
+
+	InstanceCreateConfigKeyPolicy.Apply(config, nil)
+
+	_, found := config["volatile.eth1.peer.link_id"]
+	if found {
+		t.Fatalf("Expected volatile.eth1.peer.link_id to be removed")
+	}
+
+	if config["volatile.eth1.host_name"] != "veth1234" {
+		t.Fatalf("Expected volatile.eth1.host_name to be preserved, got %q", config["volatile.eth1.host_name"])
+	}
+
+	if config["volatile.uuid"] != "uuid" {
+		t.Fatalf("Expected volatile.uuid to be preserved, got %q", config["volatile.uuid"])
+	}
+
+	if config["user.foo"] != "bar" {
+		t.Fatalf("Expected user config value to be preserved, got %q", config["user.foo"])
+	}
+}
+
+func TestApplyRefreshConfigRemovesPeerLinkID(t *testing.T) {
+	target := Instance{
+		Config: map[string]string{
+			"volatile.idmap.next": "target-idmap",
+		},
+	}
+
+	instance := InstancePut{
+		Config: map[string]string{
+			"user.foo":                   "bar",
+			"volatile.eth1.peer.link_id": "source-link-id",
+			"volatile.idmap.next":        "source-idmap",
+		},
+	}
+
+	instance.ApplyRefreshConfig(target)
+
+	_, found := instance.Config["volatile.eth1.peer.link_id"]
+	if found {
+		t.Fatalf("Expected volatile.eth1.peer.link_id to be removed by refresh")
+	}
+
+	if instance.Config["volatile.idmap.next"] != "target-idmap" {
+		t.Fatalf("Expected volatile.idmap.next to be preserved from target, got %q", instance.Config["volatile.idmap.next"])
+	}
+
+	if instance.Config["user.foo"] != "bar" {
+		t.Fatalf("Expected user config value to be preserved, got %q", instance.Config["user.foo"])
+	}
+}

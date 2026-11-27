@@ -23,6 +23,7 @@ jobs:
   check-domain-label:
     if: ${{ github.repository_owner == 'canonical' && !github.event.pull_request.draft }}
     permissions:
+      contents: read # for private repos
       pull-requests: write
     name: Verify domain label
     runs-on: ubuntu-slim

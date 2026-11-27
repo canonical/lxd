@@ -270,7 +270,7 @@ func qemuCreate(ctx context.Context, s *state.State, args db.InstanceArgs, p api
 			return nil, nil, fmt.Errorf("Invalid config: %w", err)
 		}
 
-		err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
+		err = instance.ValidDevices(s, d.project, d.Type(), d.Name(), d.localDevices, d.expandedDevices)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid devices: %w", err)
 		}
@@ -6151,6 +6151,13 @@ func (d *qemu) Rename(ctx context.Context, newName string, applyTemplateTrigger 
 		return err
 	}
 
+	if !d.IsSnapshot() {
+		err = d.validatePeerRename()
+		if err != nil {
+			return err
+		}
+	}
+
 	err = d.checkRootVolumeNotInUse()
 	if err != nil {
 		return err
@@ -6435,7 +6442,7 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(d.state, d.project, d.Type(), args.Devices, nil)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), d.Name(), args.Devices, nil)
 		if err != nil {
 			return fmt.Errorf("Invalid devices: %w", err)
 		}

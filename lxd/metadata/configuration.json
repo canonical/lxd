@@ -1283,6 +1283,14 @@
 						}
 					},
 					{
+						"peer": {
+							"longdesc": "Pair this NIC with a `p2p` NIC on another instance. The value is `\u003cinstance_name\u003e:\u003cdevice_name\u003e`.\nBoth devices must reference each other, and both instances must be in the same project and on the same cluster member.\nThe peers are connected by a private, host-isolated bridge that carries untagged traffic and 802.1Q VLANs.\nLXD installs a local-in drop rule on the bridge so instance traffic is not delivered to the host network stack.\nMultiple peer links can be configured between the same two instances; each device pair gets its own private bridge.\nThe host-side bridge name is derived only from a LXD-generated link ID that is shared by both devices, and each side's host port name is generated randomly by LXD, so instance configuration cannot influence host networking. LXD stores the link ID in `volatile.\u003cdevice\u003e.peer.link_id` and the port name in `volatile.\u003cdevice\u003e.host_name`. This makes the feature safe to use from restricted projects.\nThis option cannot be used with `host_name`, `mtu`, `queue.tx.length`, host routes or host-side traffic limits.",
+							"managed": "no",
+							"shortdesc": "Peer instance and device to connect to",
+							"type": "string"
+						}
+					},
+					{
 						"queue.tx.length": {
 							"longdesc": "",
 							"shortdesc": "Transmit queue length for the NIC",
@@ -5217,7 +5225,7 @@
 					{
 						"restricted.devices.nic": {
 							"defaultdesc": "`managed`",
-							"longdesc": "Possible values are `allow`, `block`, or `managed`.\n\n- When set to `block`, this option prevents using all network devices.\n- When set to `managed`, this option allows using network devices only if `network=` is set.\n- When set to `allow`, there is no restriction on which network devices can be used.",
+							"longdesc": "Possible values are `allow`, `block`, or `managed`.\n\n- When set to `block`, this option prevents using all network devices.\n- When set to `managed`, this option allows using network devices only if `network=` is set.\n  The only exception is a `p2p` network device that sets `peer`: a peered `p2p` NIC does not\n  attach to a host network, because it connects two instances in the project through a private\n  bridge owned by LXD. A `p2p` NIC that does not set `peer` is still refused.\n- When set to `allow`, there is no restriction on which network devices can be used.",
 							"shortdesc": "Which network devices can be used",
 							"type": "string"
 						}

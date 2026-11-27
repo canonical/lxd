@@ -68,7 +68,7 @@ body:
       placeholder: If not applicable, answer "n/a".
     validations:
       required: true
-      
+
   - type: textarea
     id: expected_behavior
     attributes:

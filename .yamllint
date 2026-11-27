@@ -6,3 +6,5 @@ rules:
   line-length: disable
   truthy: disable
   comments: disable
+  indentation:
+    indent-sequences: whatever

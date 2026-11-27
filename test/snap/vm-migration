@@ -49,10 +49,6 @@ done
 
 # Install LXD in the first member.
 installLXDSnapInstance member1 "${LXD_SNAP_CHANNEL}"
-if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
-    lxc file push --quiet "${LXD_SIDELOAD_PATH}" member1/var/snap/lxd/common/lxd.debug
-    lxc exec member1 -- systemctl restart snap.lxd.daemon
-fi
 lxc exec member1 -- lxd waitready --timeout=300
 
 # Initialise and configure LXD in the first member.
@@ -64,10 +60,6 @@ joinToken="$(lxc exec member1 -- lxc cluster add member2 --quiet)"
 
 # Install LXD on the second member.
 installLXDSnapInstance member2 "${LXD_SNAP_CHANNEL}"
-if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
-    lxc file push --quiet "${LXD_SIDELOAD_PATH}" member2/var/snap/lxd/common/lxd.debug
-    lxc exec member2 -- systemctl restart snap.lxd.daemon
-fi
 lxc exec member2 -- lxd waitready --timeout=300
 
 # Create a preseed file for member2 to join member1.

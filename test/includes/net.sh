@@ -10,6 +10,16 @@ print(s.getsockname()[1])
 s.close()"
 }
 
+# Return an available random local UDP port
+local_udp_port() {
+    exec python3 -c "
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.bind(('127.0.0.1', 0))
+print(s.getsockname()[1])
+s.close()"
+}
+
 # waitTCPPort: poll host:port until it reaches the desired state, checking up
 # to <attempts> times (default 10) every <interval> seconds (default 0.1).
 # Uses bash's own /dev/tcp redirection so no external tool (nc, etc.) is needed.

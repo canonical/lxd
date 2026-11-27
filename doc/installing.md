@@ -204,11 +204,12 @@ These instructions for building and installing from source are suitable for deve
 Source builds for integration into Linux distributions are not covered.
 This guide is written for Ubuntu 24.04 LTS on x86_64.
 
-We recommend having the latest versions of `liblxc` (see {ref}`LXC requirements <requirements-lxc>`)
-available for LXD development. For convenience, `make deps` will pull the
-appropriate versions of `liblxc` and `dqlite` from their corresponding upstream
-Git repository. Additionally, LXD requires a modern Golang (see
-{ref}`requirements-go`) version to work. On Ubuntu, you can install these with:
+For the minimum build and runtime requirements for LXD, see {ref}`requirements`.
+We recommend using the latest version of `liblxc` for LXD development.
+For convenience, `make deps` pulls the appropriate versions of `liblxc` and `dqlite` from their respective upstream Git repositories.
+A {ref}`modern version of Go <requirements-go>` is also required to build LXD.
+
+On Ubuntu, you can install the build dependencies with these commands:
 
 ```bash
 sudo apt update
@@ -263,7 +264,7 @@ sudo apt install lvm2 thin-provisioning-tools
 sudo apt install btrfs-progs
 ```
 
-At runtime, LXD might need the following packages to be installed on the host system:
+At runtime, LXD might need the following packages to be installed on the host system (`nftables` can be replaced by `iptables` on older systems):
 
 ```bash
 sudo apt update
@@ -276,8 +277,6 @@ sudo apt install \
     squashfs-tools-ng \
     tar \
     xz-utils
-
-# `nftables` can be replaced by `iptables` on older systems
 ```
 
 To run the test suite or test related `make` targets, you'll also need:
