@@ -4,17 +4,17 @@ go 1.27.4
 
 require (
 	github.com/NVIDIA/go-nvml v0.13.4-1
-	github.com/NVIDIA/nvidia-container-toolkit v1.20.1
+	github.com/NVIDIA/nvidia-container-toolkit v1.20.2
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.4
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20260929120758-6e3915f1a6a8
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
-	github.com/fvbommel/sortorder v1.2.0
+	github.com/fvbommel/sortorder v1.2.1
 	github.com/go-acme/lego/v4 v4.35.2
-	github.com/go-chi/chi/v5 v5.3.2
-	github.com/go-jose/go-jose/v4 v4.1.5
+	github.com/go-chi/chi/v5 v5.5.0
+	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
@@ -27,50 +27,51 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/lxc/go-lxc v0.0.0-20260316180011-3af4ce000ed7
 	github.com/mattn/go-colorable v0.1.16
-	github.com/mattn/go-sqlite3 v1.14.52
+	github.com/mattn/go-sqlite3 v1.14.53
 	github.com/mdlayher/ndp v1.1.0
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
-	github.com/mdlayher/vsock v1.3.0
+	github.com/mdlayher/vsock v1.4.0
 	github.com/miekg/dns v1.1.73
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/moby/sys/capability v0.4.0
+	github.com/moby/sys/capability v0.5.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260928071936-c0650ce2169b
 	github.com/openfga/language/pkg/go v0.3.2
-	github.com/openfga/openfga v1.22.0
-	github.com/osrg/gobgp/v4 v4.10.0
-	github.com/pkg/sftp v1.13.11
+	github.com/openfga/openfga v1.22.1
+	github.com/osrg/gobgp/v4 v4.11.0
+	github.com/pkg/sftp v1.13.12
 	github.com/pkg/xattr v0.4.12
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.51.14
+	github.com/zitadel/oidc/v3 v3.52.0
 	go.uber.org/zap v1.28.0
-	go.yaml.in/yaml/v2 v2.4.4
-	golang.org/x/crypto v0.57.0
-	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sync v0.23.0
-	golang.org/x/sys v0.48.0
-	golang.org/x/term v0.46.0
-	golang.org/x/text v0.42.0
-	golang.org/x/tools v0.51.0
+	go.yaml.in/yaml/v2 v2.4.5
+	golang.org/x/crypto v0.59.0
+	golang.org/x/oauth2 v0.38.0
+	golang.org/x/sync v0.25.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
+	golang.org/x/text v0.44.0
+	golang.org/x/tools v0.53.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	tags.cncf.io/container-device-interface v1.1.1
+	tags.cncf.io/container-device-interface v1.1.2
 	tags.cncf.io/container-device-interface/specs-go v1.1.1
 )
 
 require (
 	cel.dev/expr v0.25.3 // indirect
+	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/NVIDIA/go-nvlib v0.13.0 // indirect
 	github.com/Yiling-J/theine-go v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.10.2 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
@@ -97,7 +98,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.31 // indirect
-	github.com/mdlayher/socket v0.7.0 // indirect
+	github.com/mdlayher/socket v0.8.0 // indirect
 	github.com/moby/sys/devices v0.1.0 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
 	github.com/muhlemmer/httpforwarded v0.1.0 // indirect
@@ -138,11 +139,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20261007192929-f45ad48fbe92 // indirect
-	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/mod v0.43.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261005182115-fad411399dd8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261104224025-d1e00e9f33ab // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
