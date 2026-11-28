@@ -3929,3 +3929,10 @@ The host-side bridge name is derived only from a LXD-generated link ID that is s
 ## `instance_nic_p2p_peer_hotplug`
 
 Peered `p2p` NICs can be added to and removed from running containers and virtual machines. The first endpoint stays isolated until the reciprocal device is added. Removing one endpoint disconnects the link and leaves the other interface in place.
+
+(extension-server-config-redacted)=
+## `server_config_redacted`
+
+Adds a `redacted` query parameter to `GET /1.0`. When set to `true`, the values of secret server configuration keys (`loki.auth.password`, `network.ovn.client_key` and `oidc.client.secret`) are replaced with `[redacted]` in the response. Passwords embedded in the proxy URLs set in `core.proxy_http` and `core.proxy_https` are also replaced with `[redacted]`.
+
+This makes it possible to share the output of `lxc info --redacted` without leaking credentials.

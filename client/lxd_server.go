@@ -14,10 +14,25 @@ import (
 
 // GetServer returns the server status as a Server struct.
 func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
+	return r.getServer("")
+}
+
+// GetServerRedacted returns the server status as a Server struct, with the values of secret configuration keys
+// redacted.
+func (r *ProtocolLXD) GetServerRedacted() (*api.Server, string, error) {
+	err := r.CheckExtension("server_config_redacted")
+	if err != nil {
+		return nil, "", err
+	}
+
+	return r.getServer("?redacted=true")
+}
+
+func (r *ProtocolLXD) getServer(path string) (*api.Server, string, error) {
 	server := api.Server{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct(http.MethodGet, "", nil, "", &server)
+	etag, err := r.queryStruct(http.MethodGet, path, nil, "", &server)
 	if err != nil {
 		return nil, "", err
 	}

@@ -521,6 +521,7 @@ var APIExtensions = []string{
 	"instance_boot_network_family",
 	"instance_nic_p2p_peer",
 	"instance_nic_p2p_peer_hotplug",
+	"server_config_redacted",
 }
 
 func init() {

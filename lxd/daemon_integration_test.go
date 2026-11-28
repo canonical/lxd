@@ -80,6 +80,56 @@ func TestIntegration_UnixSocket(t *testing.T) {
 	assert.False(t, client.IsClustered())
 }
 
+// Secret server configuration values are only hidden when the redacted query parameter is set.
+func TestIntegration_ServerRedacted(t *testing.T) {
+	daemon, cleanup := newTestDaemon(t)
+	defer cleanup()
+	client, err := lxd.ConnectLXDUnix(daemon.os.GetUnixSocket(), nil)
+	require.NoError(t, err)
+
+	server, etag, err := client.GetServer()
+	require.NoError(t, err)
+	assert.Contains(t, server.APIExtensions, "server_config_redacted")
+
+	secrets := map[string]string{
+		"loki.auth.password":     "loki-pass",
+		"network.ovn.client_key": "ovn-key",
+		"oidc.client.secret":     "oidc-secret",
+	}
+
+	put := server.Writable()
+	for key, value := range secrets {
+		put.Config[key] = value
+	}
+
+	put.Config["loki.auth.username"] = "loki-user"
+	put.Config["core.proxy_http"] = "http://proxy-user:proxy-pass@127.0.0.1:3128"
+	require.NoError(t, client.UpdateServer(put, etag))
+
+	server, _, err = client.GetServer()
+	require.NoError(t, err)
+	for key, value := range secrets {
+		assert.Equal(t, value, server.Config[key])
+	}
+
+	server, _, err = client.GetServerRedacted()
+	require.NoError(t, err)
+	for key := range secrets {
+		assert.Equal(t, "[redacted]", server.Config[key])
+	}
+
+	assert.Equal(t, "loki-user", server.Config["loki.auth.username"])
+	assert.Equal(t, "http://proxy-user:[redacted]@127.0.0.1:3128", server.Config["core.proxy_http"])
+
+	// Redaction only affects the response, the stored values are unchanged.
+	server, _, err = client.GetServer()
+	require.NoError(t, err)
+	assert.Equal(t, "http://proxy-user:proxy-pass@127.0.0.1:3128", server.Config["core.proxy_http"])
+	for key, value := range secrets {
+		assert.Equal(t, value, server.Config[key])
+	}
+}
+
 // Create a new daemon for testing.
 //
 // Return a function that can be used to cleanup every associated state.

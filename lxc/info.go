@@ -24,6 +24,7 @@ type cmdInfo struct {
 
 	flagShowLog   bool
 	flagResources bool
+	flagRedacted  bool
 	flagTarget    string
 }
 
@@ -35,12 +36,13 @@ func (c *cmdInfo) command() *cobra.Command {
 	cmd.Example = cli.FormatSection("", `lxc info [<remote>:]<instance> [--show-log]
     For instance information.
 
-lxc info [<remote>:] [--resources]
+lxc info [<remote>:] [--resources] [--redacted]
     For LXD server information.`)
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, "Show the instance's last 100 log lines")
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, "Show the resources available to the server")
+	cmd.Flags().BoolVar(&c.flagRedacted, "redacted", false, "Hide the values of secret server configuration keys")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -84,6 +86,10 @@ func (c *cmdInfo) run(cmd *cobra.Command, args []string) error {
 
 	if cName == "" {
 		return c.remoteInfo(d)
+	}
+
+	if c.flagRedacted {
+		return errors.New("--redacted can only be used for server information")
 	}
 
 	return c.instanceInfo(d, cName, c.flagShowLog)
@@ -439,7 +445,12 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 		return nil
 	}
 
-	serverStatus, _, err := d.GetServer()
+	getServer := d.GetServer
+	if c.flagRedacted {
+		getServer = d.GetServerRedacted
+	}
+
+	serverStatus, _, err := getServer()
 	if err != nil {
 		return err
 	}
