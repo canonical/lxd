@@ -6,8 +6,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // InstancesProfilesRow represents a single row of the instances_profiles table.
@@ -89,11 +91,16 @@ func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, pro
 		project = "default"
 	}
 
+	ids, err := getProfileIDsByName(ctx, tx, project, profiles)
+	if err != nil {
+		return err
+	}
+
 	rows := make([]InstancesProfilesRow, 0, len(profiles))
 	for i, name := range profiles {
-		profileID, err := GetProfileID(ctx, tx, project, name)
-		if err != nil {
-			return err
+		profileID, ok := ids[name]
+		if !ok {
+			return api.StatusErrorf(http.StatusNotFound, "Profile not found")
 		}
 
 		rows = append(rows, InstancesProfilesRow{

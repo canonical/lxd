@@ -196,6 +196,61 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, "intranet", c2Profiles[0].Name)
 }
 
+func TestUpdateInstanceProfiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		profiles []string
+		notFound bool
+	}{
+		{name: "Apply order is preserved", profiles: []string{"p-b", "default", "p-a"}},
+		{name: "No profiles", profiles: []string{}},
+		{name: "Missing profile", profiles: []string{"default", "missing", "p-a"}, notFound: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx, cleanup := db.NewTestClusterTx(t)
+			defer cleanup()
+
+			ctx := context.Background()
+
+			for _, name := range []string{"p-a", "p-b"} {
+				_, err := cluster.CreateProfile(ctx, tx.Tx(), cluster.Profile{Project: "default", Name: name})
+				require.NoError(t, err)
+			}
+
+			inst := cluster.Instance{
+				Project:      "default",
+				Name:         "c1",
+				Node:         "none",
+				Type:         instancetype.Container,
+				Architecture: 1,
+			}
+
+			id, err := cluster.CreateInstance(ctx, tx.Tx(), inst)
+			require.NoError(t, err)
+
+			err = cluster.UpdateInstanceProfiles(ctx, tx.Tx(), int(id), inst.Project, tt.profiles)
+			if tt.notFound {
+				require.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+				return
+			}
+
+			require.NoError(t, err)
+
+			profiles, err := cluster.GetInstanceProfiles(ctx, tx.Tx(), int(id))
+			require.NoError(t, err)
+
+			names := make([]string, 0, len(profiles))
+			for _, profile := range profiles {
+				names = append(names, profile.Name)
+			}
+
+			assert.Equal(t, tt.profiles, names)
+		})
+	}
+}
+
 func TestInstanceList(t *testing.T) {
 	c, clusterCleanup := db.NewTestCluster(t)
 	defer clusterCleanup()
