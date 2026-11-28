@@ -33,7 +33,7 @@ There are four key concepts that LXD uses to manage these fine-grained permissio
 
 - **Entitlements**: An entitlement encapsulates an action that can be taken against a LXD API resource type.
    Some entitlements might apply to many resource types, whereas other entitlements can only apply to a single resource type.
-   For example, the entitlement `can_view` is available for all resource types, but the entitlement `can_exec` is only available for LXD resources of type `instance`.
+   For example, the entitlement `can_view` is available for almost all resource types, but the entitlement `can_exec` is only available for LXD resources of type `instance`.
 - **Permissions**: A permission is the application of an entitlement to a particular LXD resource.
    For example, given the entitlement `can_exec` that is only defined for instances, a permission is the combination of `can_exec` and a single instance, as uniquely defined by its API URL (for example, `/1.0/instances/c1?project=foo`).
 - **Identities (users)**: An identity is any authenticated party that makes requests to LXD, including TLS clients.
@@ -43,6 +43,46 @@ There are four key concepts that LXD uses to manage these fine-grained permissio
    Identities can belong to one or more groups.
    Permissions can be assigned to groups.
    TLS clients cannot currently be assigned to groups.
+
+For details about the entitlements that can be granted on different resource types, see {ref}`permissions-reference`.
+
+(authorization-entitlement-cascade)=
+### Resource levels and entitlement cascade
+
+LXD resources are organized in a hierarchy, and entitlements granted at higher levels can cascade down to lower levels:
+
+- The LXD server is the top-level resource
+- Server-scoped resources, such as projects, are owned directly by the LXD server
+- Project-scoped resources, such as instances, are owned by projects
+
+Certain entitlements on the server grant permission to perform actions on particular types of server-scoped resources.
+Likewise, entitlements on a specific project can grant permission to perform actions on particular types of project-scoped resources.
+Entitlements on the server can also cascade down to project-scoped resources.
+
+For example, `can_view_projects` on the server grants permission to view all projects on the server, as well as their project-scoped resources.
+Similarly, `viewer` on a particular project grants permission to view the project-scoped resources in that project (and only that project).
+
+(authorization-isolation-boundaries)=
+### Resource isolation
+
+Projects, rather than permissions, serve as the primary isolation boundary between resources.
+Many LXD resources can reference other resources in their configuration.
+When an identity configures a resource to reference another resource, LXD does not check whether the identity has permission to perform actions on the other resource.
+This allows resource configuration to remain valid even if an administrator removes a group's permission on referenced resources.
+
+Under this model, project-scoped resources can reference server-scoped resources as well as project-scoped resources in the same project.
+{ref}`Project restrictions <project-restrictions>` can further limit available resources, while {ref}`project features <project-features>` can enable resources in a project to use certain resources in the `default` project.
+For additional details, see {ref}`projects-isolation`.
+
+(authorization-resource-access)=
+### Access to resource contents
+
+In some cases, permission to view a resource may be all that is required to access its contents.
+For example, `can_view` granted on storage buckets allows users to view its keys, which can then be used to manage its contents.
+
+In other cases, permissions granted on one resource may be all that is required to access the contents of other resources, if a user can learn or guess their names.
+For example, the `can_edit` entitlement on an instance grants permission to edit the instance's configuration, and a user with this permission can configure the instance to reference a storage volume in the same project.
+The user can then access and modify the contents of the attached storage volume via the instance, even if the group does not have permission to perform actions on the storage volume.
 
 (permissions)=
 ### Explore permissions
