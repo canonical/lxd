@@ -83,6 +83,7 @@ Navigate to the instance detail page and switch to the {guilabel}`Console` tab t
 ````
 `````
 
+(instances-console-graphical)=
 ## Access the graphical console (for virtual machines)
 
 ```{youtube} https://www.youtube.com/watch?v=pEUsTMiq4B4
