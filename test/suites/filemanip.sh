@@ -64,6 +64,26 @@ test_filemanip() {
   [ "$(lxc exec filemanip --project=test -- cat /root/temp/filemanip)" = "test" ]
   chown root "${TEST_DIR}/filemanip"
 
+  # Sparse files should remain sparse when pushed into an instance. The second
+  # block is at 32M, leaving a trailing 32M hole that requires truncation.
+  truncate -s 64M "${TEST_DIR}/sparse"
+  dd if=/dev/urandom of="${TEST_DIR}/sparse" bs=4096 count=1 conv=notrunc status=none
+  dd if=/dev/urandom of="${TEST_DIR}/sparse" bs=4096 count=1 seek=8191 conv=notrunc status=none
+  lxc file push "${TEST_DIR}/sparse" filemanip/tmp/sparse
+  [ "$(lxc exec filemanip --project=test -- stat -c "%s" /tmp/sparse)" = "67108864" ]
+  [ "$(lxc exec filemanip --project=test -- stat -c "%b" /tmp/sparse)" -lt 4096 ]
+
+  # Overwriting the existing file should still preserve holes.
+  lxc file push "${TEST_DIR}/sparse" filemanip/tmp/sparse
+  [ "$(lxc exec filemanip --project=test -- stat -c "%b" /tmp/sparse)" -lt 4096 ]
+
+  # Verify that the content survives the sparse copy.
+  lxc file pull filemanip/tmp/sparse "${TEST_DIR}/sparse-pulled"
+  cmp "${TEST_DIR}/sparse" "${TEST_DIR}/sparse-pulled"
+  rm -f "${TEST_DIR}/sparse-pulled"
+
+  lxc exec filemanip --project=test -- rm /tmp/sparse
+
   # lxc {push|pull} -r
   mkdir "${TEST_DIR}"/source
   mkdir "${TEST_DIR}"/source/another_level

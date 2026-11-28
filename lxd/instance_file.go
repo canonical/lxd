@@ -539,6 +539,13 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 
 		defer func() { _ = file.Close() }()
 
+		// Stat the open file to detect special files that may have been swapped
+		// in after the path was checked above.
+		fileStat, err := file.Stat()
+		if err != nil {
+			return response.InternalError(err)
+		}
+
 		// Seek to the end of the file so appended writes land past the existing
 		// content. We cannot rely on os.O_APPEND here: the sftp server writes
 		// with WriteAt using client-supplied offsets and treats the append flag
@@ -548,8 +555,17 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 			return response.InternalError(err)
 		}
 
-		// Transfer the file into the instance.
-		_, err = io.Copy(file, r.Body)
+		// Transfer the file into the instance, leaving holes for zero-filled blocks
+		// so that sparse files do not get fully materialized on disk. Special files
+		// cannot be truncated and pseudo-files (procfs, sysfs, cgroupfs) report
+		// themselves as regular files without supporting sparse writes, so keep
+		// the sequential copy for those.
+		if !fileStat.Mode().IsRegular() || isPseudoPath(path) {
+			_, err = io.Copy(file, r.Body)
+		} else {
+			_, err = shared.CopySparse(file, r.Body)
+		}
+
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -656,6 +672,15 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 	}
 
 	return response.BadRequest(fmt.Errorf("Bad file type: %s", headers.Type))
+}
+
+// isPseudoPath returns whether path is under procfs or sysfs. Those expose
+// regular-looking files that do not support sparse writes.
+func isPseudoPath(path string) bool {
+	path = filepath.Clean(path)
+
+	return path == "/proc" || strings.HasPrefix(path, "/proc/") ||
+		path == "/sys" || strings.HasPrefix(path, "/sys/")
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/files instances instance_files_delete
