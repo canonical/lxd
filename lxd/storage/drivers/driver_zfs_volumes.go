@@ -29,7 +29,6 @@ import (
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
-	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -2647,6 +2646,18 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 		return false, fmt.Errorf("Failed locating zvol for deactivation: %w", err)
 	}
 
+	err = d.deactivateDevice(dataset, "volmode=none", devPath)
+	if err != nil {
+		return false, err
+	}
+
+	d.logger.Debug("Deactivated ZFS volume", logger.Ctx{"volName": vol.name, "dev": dataset})
+	return true, nil
+}
+
+// deactivateDevice sets the given property (such as volmode=none or snapdev=hidden) on the dataset to hide
+// a zvol or snapshot device, retrying until its device node at devPath has disappeared.
+func (d *zfs) deactivateDevice(dataset string, property string, devPath string) error {
 	// We cannot wait longer than the operationlock.TimeoutShutdown to avoid continuing
 	// the unmount process beyond the ongoing request.
 	waitDuration := time.Minute * 5
@@ -2654,22 +2665,22 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 	i := 0
 	for {
 		// Sometimes it takes multiple attempts for ZFS to actually apply this.
-		err = d.setDatasetProperties(dataset, "volmode=none")
+		err := d.setDatasetProperties(dataset, property)
 		if err != nil {
-			return false, err
+			return err
 		}
 
+		// ZFS removes the device asynchronously, so a later activation could see a stale device.
 		if !shared.PathExists(devPath) {
-			d.logger.Debug("Deactivated ZFS volume", logger.Ctx{"volName": vol.name, "dev": dataset})
-			break
+			return nil
 		}
 
 		if time.Now().After(waitUntil) {
-			return false, fmt.Errorf("Failed deactivating zvol after %v", waitDuration)
+			return fmt.Errorf("Failed deactivating ZFS device after %v", waitDuration)
 		}
 
 		// Wait for ZFS to remove the device path.
-		d.logger.Debug("Waiting for ZFS volume to deactivate", logger.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
+		d.logger.Debug("Waiting for ZFS device to deactivate", logger.Ctx{"dev": dataset, "path": devPath, "attempt": i})
 
 		if i <= 5 {
 			// Retry more quickly early on.
@@ -2680,8 +2691,6 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 
 		i++
 	}
-
-	return true, nil
 }
 
 // ActivateTask runs task with the volume's block device activated but not mounted.
@@ -3810,15 +3819,11 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.
 				d.logger.Warn("Failed locating ZFS snapshot volume, not waiting for it to disappear", logger.Ctx{"dev": snapshotDataset, "err": err})
 			}
 
-			err = d.setDatasetProperties(parentDataset, "snapdev=hidden")
+			err = d.deactivateDevice(parentDataset, "snapdev=hidden", diskPath)
 			if err != nil {
-				return false, err
-			}
-
-			if diskPath != "" && !block.WaitDiskDeviceGone(context.Background(), diskPath) {
 				// Release the parent volume mounted by mountVolumeSnapshot, as the snapshot is no longer mounted.
 				_, _ = d.UnmountVolume(parentVol, false, progressReporter)
-				return false, fmt.Errorf("Timeout exceeded waiting for ZFS snapshot volume %q to disappear on path %q", snapVol.name, diskPath)
+				return false, err
 			}
 
 			d.logger.Debug("Deactivated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
