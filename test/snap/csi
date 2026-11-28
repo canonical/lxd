@@ -11,7 +11,7 @@ install_lxd
 lxd init --auto
 
 echo "==> Install dependencies"
-install_deps git
+install_deps git squashfs-tools
 
 if ! command -v kubectl > /dev/null; then
     snap install kubectl --classic
@@ -41,18 +41,107 @@ export K8S_KUBECONFIG_PATH
 export K8S_CLUSTER_NAME="${CLUSTER_NAME}"
 export K8S_SNAP_CHANNEL="${K8S_SNAP_CHANNEL:-latest/edge}"
 export K8S_CSI_IMAGE_TAG="${K8S_CSI_IMAGE_TAG:-latest-edge}"
+export K8S_CSI_CHART_TAG="${K8S_CSI_CHART_TAG:-v0-latest-edge}"
 export K8S_NODE_COUNT="${K8S_NODE_COUNT:-2}"
+
+# Reuse the cached Ubuntu 24.04 minimal VM image when available instead of pulling it fresh.
+if [ -n "${IMAGE_CACHE_DIR:-}" ] && [ -f "${IMAGE_CACHE_DIR}/ubuntu.metadata" ] && [ -f "${IMAGE_CACHE_DIR}/ubuntu.img" ]; then
+    echo "==> Import cached Ubuntu VM image"
+    if ! lxc image alias list -f csv ubuntu-vm | grep '^ubuntu-vm,' >/dev/null; then
+        if lxc image import --quiet "${IMAGE_CACHE_DIR}/ubuntu.metadata" "${IMAGE_CACHE_DIR}/ubuntu.img" --alias ubuntu-vm; then
+            export LXD_INSTANCE_IMAGE="ubuntu-vm"
+        fi
+    else
+        export LXD_INSTANCE_IMAGE="ubuntu-vm"
+    fi
+fi
+
+# Populate and wire CSI-specific caches (k8s snap + base, Helm chart, OCI images) when enabled.
+if [ -n "${CSI_CACHE_DIR:-}" ]; then
+    mkdir -p "${CSI_CACHE_DIR}/snaps" "${CSI_CACHE_DIR}/charts" "${CSI_CACHE_DIR}/bin"
+
+    k8s_snap_dir="${CSI_CACHE_DIR}/snaps/k8s/${K8S_SNAP_CHANNEL/\//-}"
+    k8s_snap="$(compgen -G "${k8s_snap_dir}/k8s_*.snap" | head -n1 || true)"
+    if [ -z "${k8s_snap}" ] || [ ! -f "${k8s_snap%.snap}.assert" ]; then
+        if SNAP_CACHE_DIR="${CSI_CACHE_DIR}/snaps" download_snap k8s "${K8S_SNAP_CHANNEL}"; then
+            k8s_snap="$(compgen -G "${k8s_snap_dir}/k8s_*.snap" | head -n1 || true)"
+        else
+            echo "Warning: Failed to pre-download k8s snap (${K8S_SNAP_CHANNEL}); will fall back to store" >&2
+        fi
+    fi
+
+    if [ -n "${k8s_snap}" ] && command -v unsquashfs >/dev/null; then
+        k8s_yaml="$(unsquashfs -n -cat "${k8s_snap}" meta/snap.yaml)"
+        k8s_base="$(awk '/^base:/ {print $2; exit}' <<< "${k8s_yaml}")"
+        if [ -n "${k8s_base}" ] && [ "${k8s_base}" != "bare" ]; then
+            base_dir="${CSI_CACHE_DIR}/snaps/${k8s_base}/latest-candidate"
+            base_snap="$(compgen -G "${base_dir}/${k8s_base}_*.snap" | head -n1 || true)"
+            if [ -z "${base_snap}" ] || [ ! -f "${base_snap%.snap}.assert" ]; then
+                shared_base_dir="${SNAP_CACHE_DIR:-}/${k8s_base}/latest-candidate"
+                if [ -n "${SNAP_CACHE_DIR:-}" ] && compgen -G "${shared_base_dir}/${k8s_base}_*.snap" >/dev/null; then
+                    mkdir -p "${base_dir}"
+                    cp -a "${shared_base_dir}/${k8s_base}_"* "${base_dir}/"
+                elif ! SNAP_CACHE_DIR="${CSI_CACHE_DIR}/snaps" download_snap "${k8s_base}" "latest/candidate"; then
+                    echo "Warning: Failed to pre-download ${k8s_base} snap; will fall back to store" >&2
+                fi
+            fi
+        fi
+    fi
+
+    export K8S_SNAP_CACHE_DIR="${CSI_CACHE_DIR}/snaps"
+
+    chart_archive="${CSI_CACHE_DIR}/charts/lxd-csi-driver-${K8S_CSI_CHART_TAG}.tgz"
+    if [ ! -f "${chart_archive}" ]; then
+        chart_tmp="$(mktemp -d)"
+        if helm pull oci://ghcr.io/canonical/charts/lxd-csi-driver --version "${K8S_CSI_CHART_TAG}" --destination "${chart_tmp}"; then
+            pulled_chart="$(compgen -G "${chart_tmp}/lxd-csi-driver-*.tgz" | head -n1 || true)"
+            if [ -n "${pulled_chart}" ]; then
+                mv -f "${pulled_chart}" "${chart_archive}"
+            fi
+        fi
+        rm -rf "${chart_tmp}"
+    fi
+    if [ -f "${chart_archive}" ]; then
+        export K8S_CSI_CHART_PATH="${chart_archive}"
+    fi
+
+    export K8S_IMAGE_CACHE_PATH="${CSI_CACHE_DIR}/k8s-images.tar"
+    export K8S_IMAGE_CACHE_EXTRA_IMAGES="docker.io/library/busybox:latest"
+fi
 
 bash lxd-csi-driver/.github/actions/setup-k8s/k8s.sh deploy
 
 echo "==> Install ginkgo test runner"
-(
-    cd lxd-csi-driver
-    go install github.com/onsi/ginkgo/v2/ginkgo@"$(go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)"
-)
+ginkgo_version="$(cd lxd-csi-driver && go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)"
+if [ -n "${CSI_CACHE_DIR:-}" ]; then
+    ginkgo_bin="${CSI_CACHE_DIR}/bin/ginkgo-${ginkgo_version}"
+    if [ ! -x "${ginkgo_bin}" ]; then
+        (
+            cd lxd-csi-driver
+            GOBIN="${CSI_CACHE_DIR}/bin" go install "github.com/onsi/ginkgo/v2/ginkgo@${ginkgo_version}"
+        )
+        mv -f "${CSI_CACHE_DIR}/bin/ginkgo" "${ginkgo_bin}"
+    fi
+    ln -sf "${ginkgo_bin}" "${CSI_CACHE_DIR}/bin/ginkgo"
+    PATH="${CSI_CACHE_DIR}/bin:${PATH}"
+
+    # Mark the cache complete once the OCI image archive is populated so snap-test
+    # can save it even if a subsequent e2e test fails (without freezing a partial cache).
+    if [ -f "${K8S_IMAGE_CACHE_PATH}" ]; then
+        touch "${CSI_CACHE_DIR}/.complete"
+    fi
+
+    # Ensure files created as root (notably 0600 .snap files) are readable by actions/cache/save.
+    chmod -R a+rX "${CSI_CACHE_DIR}"
+else
+    (
+        cd lxd-csi-driver
+        go install "github.com/onsi/ginkgo/v2/ginkgo@${ginkgo_version}"
+    )
+    PATH="$(go env GOPATH)/bin:${PATH}"
+fi
 
 echo "==> Run e2e tests"
-PATH="$(go env GOPATH)/bin:${PATH}"
 
 export PATH
 export TEST_LXD_STORAGE_DRIVERS="${TEST_LXD_STORAGE_DRIVERS:-dir,btrfs,zfs,lvm}"

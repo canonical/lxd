@@ -57,7 +57,7 @@ runs:
   steps:
     - name: Reclaim disk space
       # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
-      if: ${{ inputs.test == 'conversion' || inputs.test == 'nesting' || startsWith(inputs.test, 'storage-') }}
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'nesting' || inputs.test == 'csi' || startsWith(inputs.test, 'storage-') }}
       uses: $/.github/actions/reclaim-disk-space
 
     - name: "Disable br_netfilter"
@@ -117,7 +117,7 @@ runs:
 
     - name: Get Date
       id: get-date
-      if: ${{ inputs.test == 'qemu-external-vm' }}
+      if: ${{ inputs.test == 'qemu-external-vm' || inputs.test == 'csi' }}
       shell: bash
       run: |
         echo "date=$(/bin/date -u "+%Y%m%d")" >> "${GITHUB_OUTPUT}"
@@ -132,6 +132,16 @@ runs:
         path: /home/runner/work/cache
         key: cache-${{ steps.get-date.outputs.date }}
 
+    # Restore CSI-specific dependencies (k8s snap + base, container images, Helm chart, ginkgo)
+    # Restoring the cache is safe even from untrusted forks
+    - name: Restore CSI cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: csi-cache-restore
+      if: ${{ inputs.test == 'csi' }}
+      with:
+        path: /home/runner/csi-cache
+        key: csi-${{ runner.arch }}-${{ steps.get-date.outputs.date }}
+
     - name: Setup MicroCeph
       if: ${{ inputs.test == 'conversion' || inputs.test == 'storage-buckets' || inputs.test == 'storage-vm ceph' || inputs.test == 'storage-volumes-vm' }}
       uses: $/.github/actions/setup-microceph
@@ -141,7 +151,7 @@ runs:
         microceph-channel: ${{ inputs.microceph-channel }}
 
     - name: Setup MicroOVN
-      if: ${{ inputs.microovn-channel != '' }}
+      if: ${{ inputs.microovn-channel != '' && inputs.test != 'csi' }}
       uses: $/.github/actions/setup-microovn
       with:
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
@@ -178,7 +188,9 @@ runs:
     - name: ${{ inputs.test }}
       shell: bash
       env:
-        SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE,LXD_SNAP_SIDELOAD,LXD_SNAP_BINARY_DIR"
+        SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,IMAGE_CACHE_DIR,SNAP_CACHE_DIR,CSI_CACHE_DIR,OVN_SOURCE,LXD_SNAP_SIDELOAD,LXD_SNAP_BINARY_DIR"
+        IMAGE_CACHE_DIR: ${{ inputs.image-cache-dir }}
+        CSI_CACHE_DIR: ${{ inputs.test == 'csi' && '/home/runner/csi-cache' || '' }}
         LXD_SNAP_SIDELOAD: ${{ inputs.sideload == 'true' && '1' || '' }}
         LXD_SNAP_BINARY_DIR: ${{ inputs.binary-dir }}
         GOCOVERDIR: ${{ steps.make-gocoverdir.outputs.dir }}
@@ -232,6 +244,29 @@ runs:
       with:
         path: /home/runner/work/cache
         key: cache-${{ steps.get-date.outputs.date }}
+
+    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork).
+    # Save even when the e2e test run fails (not when cancelled), as long as test/snap/csi marked the cache complete
+    # so we never freeze a half-populated cache under today's immutable key.
+    - name: Check CSI cache readiness
+      id: csi-cache-ready
+      if: |
+        !cancelled() &&
+        inputs.test == 'csi' &&
+        steps.csi-cache-restore.outputs.cache-hit != 'true' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      shell: bash
+      run: |
+        if [ -f /home/runner/csi-cache/.complete ]; then
+          echo "ready=true" >> "${GITHUB_OUTPUT}"
+        fi
+
+    - name: Save CSI cache
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: ${{ !cancelled() && steps.csi-cache-ready.outputs.ready == 'true' }}
+      with:
+        path: /home/runner/csi-cache
+        key: csi-${{ runner.arch }}-${{ steps.get-date.outputs.date }}
 
     - name: Upload ${{ inputs.test }} test reports
       if: ${{ always() && startsWith(inputs.test, 'ui ') }}
