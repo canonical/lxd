@@ -3,24 +3,32 @@ run_cmd() {
     CMD="$1"
     shift
 
-    unset LD_LIBRARY_PATH
+    # Host editors must not load Python code or configuration from the snap.
+    unset LD_LIBRARY_PATH PYTHONPATH PYTHONDONTWRITEBYTECODE PYTHONHOME PYTHONSTARTUP
+    export PYTHONNOUSERSITE=1
     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    export HOME="${SNAP_REAL_HOME}"
+    # Avoid replacing HOME with an empty value, which can redirect editor
+    # configuration lookups to the current directory.
+    if [ -n "${SNAP_REAL_HOME:-}" ]; then
+        export HOME="${SNAP_REAL_HOME}"
+    fi
+
     export USER="${USERNAME}"
-    IGNORERCFILES=""
-    if [ "${HOME}" != "/root" ] && [ "${CMD}" = "nano" ]; then
+    # Compare the basename so absolute nano paths get the same safeguard.
+    if [ "${HOME}" != "/root" ] && [ "${CMD##*/}" = "nano" ]; then
         export XDG_DATA_HOME="${HOME}/.local/share"
         if [ ! -d "/var/lib/snapd/hostfs/${XDG_DATA_HOME}" ]; then
             echo "Instructing nano to ignore RC files due to missing directory: \"${XDG_DATA_HOME}\""
-           IGNORERCFILES="--ignorercfiles"
+            set -- "--ignorercfiles" "$@"
         fi
     fi
 
     # Use --propagation slave so unmounts in the parent namespace propagate to
     # the editor's namespace. This prevents leftover mounts (ZFS/LVM) from
     # blocking storage delete operations while the editor is open.
-    # shellcheck disable=SC2145
-    exec unshare --kill-child -U -m --propagation slave -p -r -f --root="/var/lib/snapd/hostfs/" "/bin/sh" -c "mount -t proc proc /proc 2>/dev/null || true; exec \"${CMD}\" ${IGNORERCFILES} \"$@\""
+    # Pass the command positionally so it is never interpreted as shell syntax.
+    exec unshare --kill-child -U -m --propagation slave -p -r -f --root="/var/lib/snapd/hostfs/" \
+        "/bin/sh" -c 'mount -t proc proc /proc 2>/dev/null || true; exec "$@"' _ "${CMD}" "$@"
 }
 
 # Detect base name
@@ -31,6 +39,20 @@ USERNS=1
 [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && grep -qxF 1 /proc/sys/kernel/apparmor_restrict_unprivileged_userns && USERNS=0
 
 find_and_spawn() {
+    # Resolve absolute editor paths below hostfs before searching PATH-like
+    # locations for bare command names.
+    case "${1}" in
+        /*)
+            if [ -e "/var/lib/snapd/hostfs${1}" ] || [ -L "/var/lib/snapd/hostfs${1}" ]; then
+                run_cmd "$@"
+            fi
+
+            return
+            ;;
+        *)
+            ;;
+    esac
+
     for path in / /usr/ /usr/local/; do
         if [ -e "/var/lib/snapd/hostfs/${path}bin/${1}" ] || [ -L "/var/lib/snapd/hostfs/${path}bin/${1}" ]; then
             run_cmd "$@"
@@ -38,13 +60,30 @@ find_and_spawn() {
     done
 }
 
-EDIT_CMD="${1}"
-EDIT_PATH="${2}"
-if [ -z "${EDIT_PATH}" ] || [ "$#" -ge "3" ]; then
-    EDIT_CMD=""
-    for arg in "${@}"; do
-        EDIT_PATH="${arg}"
-    done
+if [ -n "${LXD_EDITOR:-}" ]; then
+    EDIT_PATH="${1}"
+    EDIT_IFS="${IFS}"
+    unset IFS
+    set -f
+    # Split the configured command on whitespace without globbing or evaluating
+    # metacharacters as shell syntax.
+    # shellcheck disable=SC2086
+    set -- ${LXD_EDITOR}
+    set +f
+    IFS="${EDIT_IFS}"
+    EDIT_CMD="${1:-}"
+    [ "$#" -eq 0 ] || shift
+    EDIT_FROM_ENV=1
+else
+    EDIT_FROM_ENV=0
+    EDIT_CMD="${1}"
+    EDIT_PATH="${2}"
+    if [ -z "${EDIT_PATH}" ] || [ "$#" -ge "3" ]; then
+        EDIT_CMD=""
+        for arg in "$@"; do
+            EDIT_PATH="${arg}"
+        done
+    fi
 fi
 
 # Default to trying nano if no editor is provided
@@ -57,7 +96,12 @@ if [ -n "${EDIT_CMD}" ] && [ "${USERNS}" = 1 ]; then
     exec 9< /tmp/
     # Replace "/tmp/" prefix by exec'ed FD 9.
     EDIT_PATH_HOST="/proc/self/fd/9/${EDIT_PATH##*/}"
-    find_and_spawn "${EDIT_CMD}" "${EDIT_PATH_HOST}"
+    if [ "${EDIT_FROM_ENV}" = 1 ]; then
+        find_and_spawn "${EDIT_CMD}" "$@" "${EDIT_PATH_HOST}"
+    else
+        find_and_spawn "${EDIT_CMD}" "${EDIT_PATH_HOST}"
+    fi
+
 fi
 
 # Fallback to using vim.tiny from base snap
@@ -66,6 +110,9 @@ fi
 for vimrc in "${SNAP_USER_COMMON}/.vimrc" "/snap/${SNAP_BASE}/current/etc/vim/vimrc"; do
     [ -r "${vimrc}" ] || continue
     export VIMINIT="source ${vimrc}"
+    # The first readable file is the user's vimrc; do not replace it with the
+    # base snap's system-wide configuration.
+    break
 done
 
 # Ignore vimrc if none was found to be readable.
