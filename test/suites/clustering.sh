@@ -5981,7 +5981,16 @@ test_clustering_replicator_basic() {
 
   sub_test "Run replicator and verify instances appear on LXD_TWO"
 
+  local monfile
+  monfile="$(mktemp -p "${TEST_DIR}" monitor.XXX)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc_monitor_start "${monfile}" --type=operation --project replicator-project --format=json
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  kill_go_proc "${LXC_MONITOR_PID}" || true
+
+  # The transfer runs as part of the "Replicating instance" operations, not as separate "Migrating instance" operations.
+  jq --exit-status --slurp 'any(.[]; .metadata.description == "Replicating instance") and all(.[]; .metadata.description != "Migrating instance")' "${monfile}"
+  rm "${monfile}"
+
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '.. | objects | select(.description == "Running replicator")')"
   jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
@@ -6793,6 +6802,162 @@ test_clustering_replicator_multi_member() {
   # Cleanup: instances exist on both clusters after replication + restore.
   LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --project replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+  teardown_clustering_netns
+  teardown_clustering_bridge
+}
+
+# replicator_running_ops prints the number of running operations with the given description on a daemon.
+replicator_running_ops() {
+  local dir="${1}" description="${2}"
+  LXD_DIR="${dir}" lxc query '/1.0/operations?project=replicator-project&recursion=2' | jq --arg d "${description}" '[.. | objects | select(.description? == $d and .status? == "Running") | .id] | unique | length'
+}
+
+# replicator_wait_status waits up to 15 seconds for the replicator state to leave Running and prints it. A cancel
+# must not wait for the frozen target, so this is shorter than any of the migration timeouts.
+replicator_wait_status() {
+  local _ status="Running"
+  for _ in $(seq 30); do
+    status="$(LXD_DIR="${LXD_ONE_DIR}" lxc query '/1.0/replicators/my-replicator/state?project=replicator-project' | jq --raw-output .status)"
+    [ "${status}" != "Running" ] && break
+    sleep 0.5
+  done
+
+  echo "${status}"
+}
+
+test_clustering_replicator_cancel() {
+  local poolDriver
+  poolDriver=$(storage_backend "${LXD_INITIAL_DIR}")
+
+  # Ceph uses a single shared OSD pool name derived from TEST_DIR, so it cannot bootstrap two clusters.
+  if [ "${poolDriver}" = "ceph" ]; then
+    return
+  fi
+
+  # Source cluster with two members, so that the run covers an instance on its own member and one on another member.
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
+
+  local cert
+  # shellcheck disable=SC2153
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+
+  # Target cluster: separate single-node cluster (node3).
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}" "" 3
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc project create replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_B_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster link create lxd_a --token "${LXD_B_TRUST_TOKEN}" --auth-group replicator-group
+
+  LXD_DIR="${LXD_THREE_DIR}" lxc project set replicator-project replica.cluster=lxd_a
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_b
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+
+  # c1 is on the member that runs the replicator, c2 on another member. Each holds enough data that neither the
+  # snapshot nor the transfer finishes straight away.
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 --project replicator-project -- dd if=/dev/urandom of=/root/data bs=1M count=512 status=none
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 --project replicator-project -- dd if=/dev/urandom of=/root/data bs=1M count=512 status=none
+
+  local _ three_pid run_pid op_id status
+  three_pid="$(< "${LXD_THREE_DIR}/lxd.pid")"
+
+  sub_test "Verify cancelling a run during the snapshot stage replicates nothing"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project &
+  run_pid=$!
+
+  op_id=""
+  for _ in $(seq 200); do
+    op_id="$(LXD_DIR="${LXD_ONE_DIR}" lxc query '/1.0/operations?project=replicator-project&recursion=1' | jq --raw-output '[.. | objects | select(.description? == "Running replicator" and .status? == "Running")][0].id // empty')"
+    [ -n "${op_id}" ] && break
+    sleep 0.05
+  done
+
+  [ -n "${op_id}" ]
+
+  # Freeze the target cluster, so that nothing can be replicated even if the snapshots finish before the cancel.
+  kill -STOP "${three_pid}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation delete "${op_id}" --project replicator-project
+  status="$(replicator_wait_status)"
+  kill -CONT "${three_pid}"
+  wait "${run_pid}" || true
+
+  [ "${status}" = "Failed" ]
+
+  # Forward operations that start after the cancel must not replicate their instance.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${op_id}?project=replicator-project" | jq --exit-status '.status == "Cancelled"'
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c n)" = "" ]
+
+  sub_test "Verify cancelling a run during the transfer stops the migrations on every member"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project &
+  run_pid=$!
+
+  # Wait for a destination sink, then freeze the target so that the transfer can't finish by itself.
+  local sinks=0
+  for _ in $(seq 600); do
+    sinks="$(replicator_running_ops "${LXD_THREE_DIR}" "Creating instance")"
+    [ "${sinks}" != "0" ] && break
+    sleep 0.05
+  done
+
+  kill -STOP "${three_pid}"
+  [ "${sinks}" != "0" ]
+
+  op_id="$(LXD_DIR="${LXD_ONE_DIR}" lxc query '/1.0/operations?project=replicator-project&recursion=1' | jq --exit-status --raw-output '[.. | objects | select(.description? == "Running replicator" and .status? == "Running")][0].id')"
+  LXD_DIR="${LXD_ONE_DIR}" lxc operation delete "${op_id}" --project replicator-project
+  status="$(replicator_wait_status)"
+
+  # The migration sources must be gone on both members while the target is still frozen.
+  local migrating_one migrating_two
+  migrating_one="$(replicator_running_ops "${LXD_ONE_DIR}" "Migrating instance")"
+  migrating_two="$(replicator_running_ops "${LXD_TWO_DIR}" "Migrating instance")"
+  kill -CONT "${three_pid}"
+  wait "${run_pid}" || true
+
+  [ "${status}" = "Failed" ]
+  [ "${migrating_one}" = "0" ]
+  [ "${migrating_two}" = "0" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${op_id}?project=replicator-project" | jq --exit-status '.status == "Cancelled"'
+
+  sub_test "Verify a run after a cancelled one completes"
+
+  # A sink whose create request was cancelled in flight waits for its source until it times out.
+  for _ in $(seq 60); do
+    [ "$(replicator_running_ops "${LXD_THREE_DIR}" "Creating instance")" = "0" ] && break
+    sleep 0.5
+  done
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query '/1.0/replicators/my-replicator/state?project=replicator-project' | jq --raw-output .status)" = "Completed" ]
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c n | sort | tr '\n' ' ' | grep -xF 'c1 c2 '
+
+  # Cleanup
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --force --project replicator-project
   LXD_DIR="${LXD_THREE_DIR}" lxc profile device remove default root --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
   kill_lxd "${LXD_THREE_DIR}"
