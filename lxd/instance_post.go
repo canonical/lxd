@@ -298,7 +298,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Unset "volatile.cluster.group" if the instance is manually moved to a cluster member.
-	if targetMemberInfo != nil && targetGroupName == "" && inst.LocalConfig()["volatile.cluster.group"] != "" {
+	if targetMemberInfo != nil && targetMemberInfo.Name != inst.Location() && targetGroupName == "" && inst.LocalConfig()["volatile.cluster.group"] != "" {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			err = tx.DeleteInstanceConfigKey(ctx, int64(inst.ID()), "volatile.cluster.group")
 			if err != nil {
@@ -345,12 +345,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// needsClusterMove determines if we need to migrate the instance to a different cluster member.
-		// This is true when a target member is specified and any of the following conditions are met:
-		// - The target member is different from the current location.
-		// - A cluster group needs to be set.
-		// - There are instance changes to apply (pool, project, config, devices, or profiles).
-		needsClusterMove := targetMemberInfo != nil &&
-			(inst.Location() != targetMemberInfo.Name || targetGroupName != "" || hasInstanceChanges)
+		needsClusterMove := targetMemberInfo != nil && inst.Location() != targetMemberInfo.Name
 
 		// needsLocalCopy determines if we need to copy the instance locally on the current member before migrating.
 		// A local copy creates a new instance on the same member with the desired changes applied.
@@ -898,7 +893,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			srcInstInfo.Description = targetArgs.Description
 			srcInstInfo.Ephemeral = targetArgs.Ephemeral
 			srcInstInfo.Stateful = targetArgs.Stateful
-			if len(targetProfileNames) > 0 {
+			if targetProfileNames != nil {
 				srcInstInfo.Profiles = targetProfileNames
 			}
 		}
