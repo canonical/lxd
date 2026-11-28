@@ -72,18 +72,22 @@ func ImportProcess(path string) (*Process, error) {
 		return nil, fmt.Errorf("%w %d in PID file %q", ErrBadPID, proc.PID, path)
 	}
 
+	bootIDVerified := false
 	if proc.BootID != "" {
 		bootID, err := linux.CurrentBootID()
 		if err == nil {
 			if bootID != proc.BootID {
 				return &proc, nil
 			}
+
+			bootIDVerified = true
 		}
 	}
 
 	// On unix, FindProcess always returns successfully (with a 'done' process if pidfd_open
 	// returned with ESRCH).
 	proc.proc, _ = os.FindProcess(proc.PID)
+	startTimeVerified := false
 	if proc.StartTime != 0 {
 		starttime, err := linux.ProcessStartTime(proc.PID)
 		if err == nil {
@@ -92,8 +96,12 @@ func ImportProcess(path string) (*Process, error) {
 				proc.proc = nil
 				return &proc, nil
 			}
+
+			startTimeVerified = true
 		}
 	}
+
+	proc.verifiedIdentity = bootIDVerified && startTimeVerified
 
 	return &proc, nil
 }
