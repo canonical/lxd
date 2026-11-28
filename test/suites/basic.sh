@@ -981,6 +981,35 @@ test_loopback_ip_addresses_vm() {
   lxc delete -f lo-vm-test
 }
 
+test_instance_shutdown_action_vm() {
+  ensure_import_ubuntu_vm_image
+
+  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+  local monfile="${TEST_DIR}/instance-shutdown-vm.jsonl"
+  lxc_monitor_start "${monfile}" --type=lifecycle --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
+
+  # Restart through the API, then guest initiated power off.
+  lxc restart v1
+  waitInstanceReady v1
+  lxc exec v1 -- systemctl poweroff || true
+  for _ in $(seq 60); do
+    [ "$(lxc list -f csv -c s v1)" = "STOPPED" ] && break
+    sleep 1
+  done
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.metadata.action == "instance-shutdown")) | length == 2' "${monfile}" && break
+    sleep 1
+  done
+
+  kill_go_proc "${mon_pid}"
+  jq --exit-status --slurp '[.[] | select(.metadata.action == "instance-shutdown") | .metadata.context.action] == ["reboot", "stop"]' "${monfile}"
+  rm "${monfile}"
+  lxc delete -f v1
+}
+
 test_snap_basic_usage_vm() {
   ensure_import_ubuntu_vm_image
 

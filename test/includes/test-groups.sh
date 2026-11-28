@@ -178,6 +178,7 @@ readonly test_group_standalone=(
     "basic_version"
     "loopback_ip_addresses"
     "loopback_ip_addresses_vm"
+    "instance_shutdown_action_vm"
     "certificate_edit"
     "certificate_project_restrictions"
     "completions"
