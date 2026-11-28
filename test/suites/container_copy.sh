@@ -81,19 +81,21 @@ do_copy() {
   [ "$(lxc config get c2 volatile.idmap.next)" = "${c2_idmap_next_before}" ]
   [ "$(lxc config get c2 volatile.last_state.power)" = "${c2_last_state_power_before}" ]
 
-  # This will create snapshot c1/snap0
+  # This will create snapshot c1/snap0 (with /root/testfile1 only) and c1/snap1 (with /root/testfile1 and /root/snap1file).
   lxc storage volume set "${source_pool}" container/c1 user.foo=snap0
   lxc snapshot c1
+  lxc exec c1 -- touch /root/snap1file
   lxc storage volume set "${source_pool}" container/c1 user.foo=snap1
   lxc snapshot c1
   lxc storage volume set "${source_pool}" container/c1 user.foo=main
 
-  # Remove the testfile from c1 and refresh again
-  lxc exec c1 -- rm /root/testfile1
+  # Remove the snapshot files from live c1 so its contents diverge from both snapshots, then refresh.
+  lxc exec c1 -- rm /root/testfile1 /root/snap1file
   # shellcheck disable=2086
   lxc copy c1 c2 --refresh --instance-only ${targetPoolFlag}
   lxc start c2
   ! lxc exec c2 -- test -f /root/testfile1 || false
+  ! lxc exec c2 -- test -f /root/snap1file || false
   lxc stop -f c1 c2
 
   # Check whether snapshot c2/snap0 has been created
@@ -117,7 +119,31 @@ do_copy() {
   ! lxc config show c2/snap2 || false
   ! lxc storage volume show "${target_pool}" container/c2/snap2 || false
 
-  lxc delete c1 c2
+  sub_test "Copied and refreshed snapshots preserve their own filesystem contents"
+  # Copy c1 with its snapshots into a fresh container c3 and check snapshot contents on both c3 (copy) and c2 (refresh).
+  # shellcheck disable=2086
+  lxc copy c1 c3 ${targetPoolFlag}
+
+  for target_inst in c3 c2; do
+    lxc start "${target_inst}"
+    ! lxc exec "${target_inst}" -- test -f /root/testfile1 || false
+    ! lxc exec "${target_inst}" -- test -f /root/snap1file || false
+    lxc stop -f "${target_inst}"
+
+    lxc restore "${target_inst}" snap0
+    lxc start "${target_inst}"
+    lxc exec "${target_inst}" -- test -f /root/testfile1
+    ! lxc exec "${target_inst}" -- test -f /root/snap1file || false
+    lxc stop -f "${target_inst}"
+
+    lxc restore "${target_inst}" snap1
+    lxc start "${target_inst}"
+    lxc exec "${target_inst}" -- test -f /root/testfile1
+    lxc exec "${target_inst}" -- test -f /root/snap1file
+    lxc stop -f "${target_inst}"
+  done
+
+  lxc delete c1 c2 c3
 }
 
 test_container_copy_start() {
