@@ -575,6 +575,26 @@ func compressFile(sysOS *sys.OS, compress string, infile io.Reader, outfile io.W
 	return nil
 }
 
+// syncImageFile flushes an image file and its directory entry to disk before the database
+// record is created, so that the record cannot outlive the file across a power loss. Callers
+// pass the final path, because a rename after the sync would leave the new entry unflushed.
+func syncImageFile(path string) error {
+	for _, name := range []string{path, filepath.Dir(path)} {
+		f, err := os.Open(name)
+		if err != nil {
+			return err
+		}
+
+		err = f.Sync()
+		_ = f.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 /*
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
@@ -762,6 +782,11 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	/* rename the file to the expected name so our caller can use it */
 	finalName := filepath.Join(s.ImagesStoragePath(imageProject), info.Fingerprint)
 	err = shared.FileMove(imageFile.Name(), finalName)
+	if err != nil {
+		return nil, err
+	}
+
+	err = syncImageFile(finalName)
 	if err != nil {
 		return nil, err
 	}
@@ -1198,6 +1223,11 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 				"dest":   imgfname})
 			return nil, err
 		}
+
+		err = syncImageFile(imgfname)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if rootfsTmpFilename != "" && (!exists || !rootfsFileExisted) {
@@ -1207,6 +1237,11 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 				"err":    err,
 				"source": rootfsTmpFilename,
 				"dest":   rootfsfname})
+			return nil, err
+		}
+
+		err = syncImageFile(rootfsfname)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -5199,10 +5234,17 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 		return err
 	}
 
+	// The member is recorded as holding the image once this returns, so the
+	// files must survive a power loss once they are at their final path.
 	if getResp.RootfsSize == 0 {
 		// This is a unified image.
 		rootfsPath := filepath.Join(imagesDir, fingerprint)
 		err := shared.FileMove(metaFile.Name(), rootfsPath)
+		if err != nil {
+			return err
+		}
+
+		err = syncImageFile(rootfsPath)
 		if err != nil {
 			return err
 		}
@@ -5219,6 +5261,13 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 		err = shared.FileMove(rootfsFile.Name(), rootfsPath)
 		if err != nil {
 			return err
+		}
+
+		for _, path := range []string{metaPath, rootfsPath} {
+			err = syncImageFile(path)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
