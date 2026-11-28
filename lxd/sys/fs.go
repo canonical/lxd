@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/shared/features"
 )
 
 // LocalDatabasePath returns the path of the local database file.
@@ -55,6 +56,19 @@ func (s *OS) initDirs() error {
 		{filepath.Join(s.VarDir, "snapshots"), 0700},
 		{filepath.Join(s.VarDir, "virtual-machines-snapshots"), 0700},
 		{filepath.Join(s.VarDir, "storage-pools"), 0711},
+	}
+
+	if features.IsEnabled(features.MicroVM) {
+		dirs = append(dirs,
+			struct {
+				path string
+				mode os.FileMode
+			}{filepath.Join(s.VarDir, "microvms"), 0711},
+			struct {
+				path string
+				mode os.FileMode
+			}{filepath.Join(s.VarDir, "microvms-snapshots"), 0700},
+		)
 	}
 
 	for _, dir := range dirs {

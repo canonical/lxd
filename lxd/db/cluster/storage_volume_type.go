@@ -19,6 +19,7 @@ const (
 	StoragePoolVolumeTypeImage
 	StoragePoolVolumeTypeCustom
 	StoragePoolVolumeTypeVM
+	StoragePoolVolumeTypeMicroVM
 )
 
 // Leave the string type in here! This guarantees that go treats this is as a
@@ -27,6 +28,7 @@ const (
 const (
 	StoragePoolVolumeTypeNameContainer string = "container"
 	StoragePoolVolumeTypeNameVM        string = "virtual-machine"
+	StoragePoolVolumeTypeNameMicroVM   string = "microvm"
 	StoragePoolVolumeTypeNameImage     string = "image"
 	StoragePoolVolumeTypeNameCustom    string = "custom"
 )
@@ -34,7 +36,7 @@ const (
 // StoragePoolVolumeTypeFromInt is a checked conversion to StoragePoolVolumeType.
 func StoragePoolVolumeTypeFromInt(volType int) (StoragePoolVolumeType, error) {
 	switch StoragePoolVolumeType(volType) {
-	case StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM, StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeImage:
+	case StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM, StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeImage, StoragePoolVolumeTypeMicroVM:
 		return StoragePoolVolumeType(volType), nil
 	default:
 		return StoragePoolVolumeType(volType), errors.New("Invalid storage volume type")
@@ -48,6 +50,8 @@ func StoragePoolVolumeTypeFromName(volTypeName string) (StoragePoolVolumeType, e
 		return StoragePoolVolumeTypeContainer, nil
 	case StoragePoolVolumeTypeNameVM:
 		return StoragePoolVolumeTypeVM, nil
+	case StoragePoolVolumeTypeNameMicroVM:
+		return StoragePoolVolumeTypeMicroVM, nil
 	case StoragePoolVolumeTypeNameImage:
 		return StoragePoolVolumeTypeImage, nil
 	case StoragePoolVolumeTypeNameCustom:
@@ -68,6 +72,8 @@ func (t StoragePoolVolumeType) String() string {
 		return StoragePoolVolumeTypeNameContainer
 	case StoragePoolVolumeTypeVM:
 		return StoragePoolVolumeTypeNameVM
+	case StoragePoolVolumeTypeMicroVM:
+		return StoragePoolVolumeTypeNameMicroVM
 	case StoragePoolVolumeTypeImage:
 		return StoragePoolVolumeTypeNameImage
 	case StoragePoolVolumeTypeCustom:

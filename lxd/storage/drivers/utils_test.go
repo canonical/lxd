@@ -40,6 +40,16 @@ func TestGetVolumeMountPath(t *testing.T) {
 	path = GetVolumeMountPath(poolName, VolumeTypeVM, "testvol")
 	expected = GetPoolMountPath(poolName) + "/virtual-machines/testvol"
 	assert.Equal(t, expected, path)
+
+	// Test microvm volume.
+	path = GetVolumeMountPath(poolName, VolumeTypeMicroVM, "testvol")
+	expected = GetPoolMountPath(poolName) + "/microvms/testvol"
+	assert.Equal(t, expected, path)
+
+	// Test microvm volume snapshot.
+	path = GetVolumeMountPath(poolName, VolumeTypeMicroVM, "testvol/snap1")
+	expected = GetPoolMountPath(poolName) + "/microvms-snapshots/testvol/snap1"
+	assert.Equal(t, expected, path)
 }
 
 func TestEnsureMountPathRejectsUnsafeNames(t *testing.T) {

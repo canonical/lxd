@@ -59,6 +59,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   "{{ .poolMountPath }}/containers-snapshots/**" r,
   "{{ .poolMountPath }}/virtual-machines/**" r,
   "{{ .poolMountPath }}/virtual-machines-snapshots/**" r,
+  "{{ .poolMountPath }}/microvms/**" r,
+  "{{ .poolMountPath }}/microvms-snapshots/**" r,
   "{{ .poolMountPath }}/custom/**" r,
   "{{ .poolMountPath }}/custom-snapshots/**" r,
   "{{ .poolMountPath }}/" r,
