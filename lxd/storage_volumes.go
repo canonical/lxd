@@ -2756,9 +2756,10 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	revert.Add(func() { _ = isoFile.Close() })
 
 	// Stream uploaded ISO data into temporary file.
-	size, err := io.Copy(isoFile, data)
+	// The copy runs as the unprivileged user so that filesystem quotas apply to the upload.
+	size, err := util.UnprivilegedCopy(r.Context(), isoFile, data, s.OS.UnprivUID, s.OS.UnprivGID)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	// Copy reverter so far so we can use it inside run after this function has finished.
@@ -2825,9 +2826,10 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	revert.Add(func() { _ = os.Remove(tarFile.Name()) })
 
 	// Stream uploaded backup data into temporary file.
-	_, err = io.Copy(tarFile, data)
+	// The copy runs as the unprivileged user so that filesystem quotas apply to the upload.
+	_, err = util.UnprivilegedCopy(r.Context(), tarFile, data, s.OS.UnprivUID, s.OS.UnprivGID)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -2882,9 +2884,10 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	revert.Add(func() { _ = backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
-	_, err = io.Copy(backupFile, data)
+	// The copy runs as the unprivileged user so that filesystem quotas apply to the upload.
+	_, err = util.UnprivilegedCopy(r.Context(), backupFile, data, s.OS.UnprivUID, s.OS.UnprivGID)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	// Detect squashfs compression and convert to tarball.
