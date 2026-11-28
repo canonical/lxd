@@ -340,6 +340,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 
 	// Temporary variables
 	pciKnown := []string{}
+	deviceKnown := []string{}
 	pciVFs := map[string][]api.ResourcesNetworkCard{}
 
 	// Detect all Networks available through kernel network interface
@@ -359,6 +360,19 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			if !pathExists(devicePath) {
 				continue
 			}
+
+			// Skip interfaces of devices we already know about.
+			// This covers multi-port devices without a PCI address (e.g. platform switch ASICs).
+			deviceDir, err := filepath.EvalSymlinks(devicePath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed resolving %q: %w", devicePath, err)
+			}
+
+			if slices.Contains(deviceKnown, deviceDir) {
+				continue
+			}
+
+			deviceKnown = append(deviceKnown, deviceDir)
 
 			// Setup the entry
 			card := api.ResourcesNetworkCard{}
