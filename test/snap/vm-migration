@@ -104,7 +104,17 @@ sleep 60
 lxc exec member1 -- timeout 600 lxc move v1 --target member2
 
 # Verify the migration did succeed and the VM is running on member2.
-[ "$(lxc exec member1 -- lxc list -c L -f csv v1)" = "member2" ]
+[ "$(lxc exec member1 -- lxc list -c Ls -f csv v1)" = "member2,RUNNING" ]
+
+for _ in $(seq 60); do
+    if lxc exec member2 -- lxc exec v1 -- true; then
+        break
+    fi
+
+    sleep 1
+done
+
+lxc exec member2 -- lxc exec v1 -- true
 
 # Cleanup
 prepare_vm_for_hard_stop member1

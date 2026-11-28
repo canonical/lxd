@@ -322,11 +322,9 @@ func (m *Monitor) Migrate(uri string) error {
 	return nil
 }
 
-// MigrateWait waits until migration job reaches the specified status.
-// Returns nil if the migraton job reaches the specified status or an error if the migration job is in the failed
-// status.
+// MigrateWait waits until the migration job reaches the specified status.
+// It returns an error if the migration reaches a different terminal status first.
 func (m *Monitor) MigrateWait(state string) error {
-	// Wait until it completes or fails.
 	for {
 		// Prepare the response.
 		var resp struct {
@@ -342,11 +340,12 @@ func (m *Monitor) MigrateWait(state string) error {
 			return err
 		}
 
-		if resp.Return.Status == "failed" {
-			return errors.New("Migrate call failed")
+		reached, err := migrationStatusReached(resp.Return.Status, state)
+		if err != nil {
+			return err
 		}
 
-		if resp.Return.Status == state {
+		if reached {
 			return nil
 		}
 
@@ -395,11 +394,12 @@ func (m *Monitor) MigrateIncoming(ctx context.Context, uri string) error {
 			return err
 		}
 
-		if resp.Return.Status == "failed" {
-			return errors.New("Migrate incoming call failed")
+		reached, err := migrationStatusReached(resp.Return.Status, "completed")
+		if err != nil {
+			return err
 		}
 
-		if resp.Return.Status == "completed" {
+		if reached {
 			return nil
 		}
 
@@ -413,6 +413,18 @@ func (m *Monitor) MigrateIncoming(ctx context.Context, uri string) error {
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func migrationStatusReached(status string, expected string) (bool, error) {
+	if status == expected {
+		return true, nil
+	}
+
+	if status == "failed" || status == "cancelled" {
+		return false, fmt.Errorf("Migration reached terminal status %q while waiting for %q", status, expected)
+	}
+
+	return false, nil
 }
 
 // Powerdown tells the VM to gracefully shutdown.
