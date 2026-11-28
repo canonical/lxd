@@ -1,4 +1,5 @@
 #include <dlfcn.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -36,6 +37,13 @@ static struct {
     .init_ok = 0,
     .err = "Failed loading libkrun: uninitialized",
 };
+
+/* Path of the libkrun library, set by krun_set_libkrun_path before the first libkrun call. */
+static char loader_path[PATH_MAX];
+
+void krun_set_libkrun_path(const char *path) {
+    snprintf(loader_path, sizeof(loader_path), "%s", path);
+}
 
 static void loader_set_err(const char *fmt, ...) {
     va_list ap;
@@ -82,33 +90,14 @@ static bool loader_resolve(void **target, const char *name) {
     } while (0)
 
 static void loader_init_once(void) {
-    const char *override;
-    const char *candidates[] = {
-        "libkrun.so",
-        "libkrun.so.0",
-        NULL,
-    };
-    size_t i;
+    if (loader_path[0] == '\0') {
+        loader_set_err("libkrun loader: no library path set");
+        return;
+    }
 
-    override = getenv("LIBKRUN_PATH");
-    if (override != NULL && override[0] != '\0') {
-        loader.handle = loader_open(override);
-        if (loader.handle == NULL) {
-            return;
-        }
-    } else {
-        for (i = 0; candidates[i] != NULL; i++) {
-            loader.handle = loader_open(candidates[i]);
-            if (loader.handle != NULL) {
-                break;
-            }
-        }
-
-        if (loader.handle == NULL) {
-            loader_set_err("libkrun loader: cannot open %s or %s (set LIBKRUN_PATH to an explicit .so path)",
-                           candidates[0], candidates[1]);
-            return;
-        }
+    loader.handle = loader_open(loader_path);
+    if (loader.handle == NULL) {
+        return;
     }
 
     RESOLVE_REQUIRED(create_ctx, krun_create_ctx);

@@ -6,5 +6,6 @@ Minimal Go bindings for libkrun required by LXD.
 
 The package resolves libkrun at runtime with `dlopen(3)`/`dlsym(3)`.
 
-- If `LIBKRUN_PATH` is set, it is used first.
-- Otherwise it falls back to `libkrun.so` then `libkrun.so.0`.
+- `SetLibkrunPath(path)` sets the path of the library. It must be called before any other function.
+- The library is opened on the first libkrun call, usually `CreateContext()`.
+- LXD looks for the library, and for the MicroVM kernel, only in `$LXD_DIR/libkrun/`.

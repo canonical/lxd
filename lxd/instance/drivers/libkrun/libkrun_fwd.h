@@ -35,6 +35,9 @@
                              NET_FEATURE_GUEST_TSO4 | NET_FEATURE_GUEST_UFO | \
                              NET_FEATURE_HOST_TSO4 | NET_FEATURE_HOST_UFO)
 
+/* Loader: sets the path of the libkrun library. Must be called before any krun_* function. */
+void krun_set_libkrun_path(const char *path);
+
 /* Context lifecycle */
 int32_t krun_create_ctx();
 int32_t krun_free_ctx(uint32_t ctx_id);
