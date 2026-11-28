@@ -384,6 +384,11 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 	return false, nil
 }
 
+// runFSTool runs a filesystem tool on the given device or image file, confined to it when block.FSToolWrapper is set.
+func runFSTool(retryOpts *shared.RunCommandRetryOpts, retry bool, tool string, args []string, devPath string, mountPath string) (string, error) {
+	return block.RunFSTool(retryOpts, retry, tool, args, devPath, mountPath)
+}
+
 // mkfsOptions represents options for filesystem creation.
 type mkfsOptions struct {
 	Label string
@@ -411,7 +416,7 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
 	cmd = append(cmd, path)
 
-	msg, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, cmd[0], cmd[1:]...)
+	msg, err = runFSTool(noKillRetryOpts, true, cmd[0], cmd[1:], path, "")
 	if err != nil {
 		return msg, err
 	}
@@ -453,7 +458,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	switch fsType {
 	case "ext4":
 		return vol.UnmountTask(func(progressReporter ioprogress.ProgressReporter) error {
-			output, err := shared.RunCommand(context.TODO(), "e2fsck", "-f", "-y", devPath)
+			output, err := runFSTool(nil, false, "e2fsck", []string{"-f", "-y", devPath}, devPath, "")
 			if err != nil {
 				exitCodeFSModified := false
 				runErr, ok := err.(shared.RunError)
@@ -484,7 +489,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 			}
 
 			args = append(args, devPath, strSize)
-			_, err = shared.RunCommand(context.TODO(), "resize2fs", args...)
+			_, err = runFSTool(nil, false, "resize2fs", args, devPath, "")
 			if err != nil {
 				return err
 			}
@@ -493,7 +498,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 		}, true, nil)
 	case "btrfs":
 		return vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
-			_, err := shared.RunCommand(context.TODO(), "btrfs", "filesystem", "resize", strSize, mountPath)
+			_, err := runFSTool(nil, false, "btrfs", []string{"filesystem", "resize", strSize, mountPath}, devPath, mountPath)
 			if err != nil {
 				return err
 			}
@@ -515,11 +520,11 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		var err error
 		switch fsType {
 		case "ext4":
-			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "resize2fs", devPath)
+			_, err = runFSTool(noKillRetryOpts, true, "resize2fs", []string{devPath}, devPath, mountPath)
 		case "xfs":
-			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "xfs_growfs", mountPath)
+			_, err = runFSTool(noKillRetryOpts, true, "xfs_growfs", []string{mountPath}, devPath, mountPath)
 		case "btrfs":
-			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "btrfs", "filesystem", "resize", "max", mountPath)
+			_, err = runFSTool(noKillRetryOpts, true, "btrfs", []string{"filesystem", "resize", "max", mountPath}, devPath, mountPath)
 		default:
 			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
@@ -561,7 +566,7 @@ func regenerateFilesystemUUID(fsType string, devPath string) error {
 func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// If the snapshot was taken whilst instance was running there may be outstanding transactions that will
 	// cause btrfstune to corrupt superblock, so ensure these are cleared out first.
-	_, err := shared.RunCommand(context.TODO(), "btrfs", "rescue", "zero-log", devPath)
+	_, err := runFSTool(nil, false, "btrfs", []string{"rescue", "zero-log", devPath}, devPath, "")
 	if err != nil {
 		return err
 	}
@@ -569,7 +574,7 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// `-m` modifies the metadata_uuid which is much faster than `-u` that rewrites all metadata blocks.
 	// The resulting filesystem needs kernel 5.0+ to be mounted or running `btrfstune -u` to regain compat
 	// with older kernels.
-	_, err = shared.RunCommand(context.TODO(), "btrfstune", "-f", "-m", devPath)
+	_, err = runFSTool(nil, false, "btrfstune", []string{"-f", "-m", devPath}, devPath, "")
 	if err != nil {
 		return err
 	}
@@ -580,20 +585,20 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 // regenerateFilesystemXFSUUID changes the XFS filesystem UUID to a new randomly generated one.
 func regenerateFilesystemXFSUUID(devPath string) error {
 	// Attempt to generate a new UUID.
-	msg, err := shared.RunCommand(context.TODO(), "xfs_admin", "-U", "generate", devPath)
+	msg, err := runFSTool(nil, false, "xfs_admin", []string{"-U", "generate", devPath}, devPath, "")
 	if err != nil {
 		return err
 	}
 
 	if msg != "" {
 		// Exit 0 with a msg usually means some log entry getting in the way.
-		_, err = shared.RunCommand(context.TODO(), "xfs_repair", "-o", "force_geometry", "-L", devPath)
+		_, err = runFSTool(nil, false, "xfs_repair", []string{"-o", "force_geometry", "-L", devPath}, devPath, "")
 		if err != nil {
 			return err
 		}
 
 		// Attempt to generate a new UUID again.
-		_, err = shared.RunCommand(context.TODO(), "xfs_admin", "-U", "generate", devPath)
+		_, err = runFSTool(nil, false, "xfs_admin", []string{"-U", "generate", devPath}, devPath, "")
 		if err != nil {
 			return err
 		}

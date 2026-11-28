@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // Errors.
@@ -829,14 +830,15 @@ func (d *btrfs) receiveSubVolume(r io.ReadCloser, receivePath string, wrapper io
 
 // getDiskPathFromFSUUID returns the disk hosting the filesystem with the given UUID.
 func (d *btrfs) getDiskPathFromFSUUID(uuid string) (string, error) {
-	uuid, err := shared.RunCommand(context.TODO(), "blkid", "--cache=/dev/null", "--uuid", uuid)
+	err := validate.IsUUID(uuid)
+	if err != nil {
+		return "", fmt.Errorf("Invalid filesystem UUID %q: %w", uuid, err)
+	}
+
+	devPath, err := filepath.EvalSymlinks(filepath.Join("/dev/disk/by-uuid", uuid))
 	if err != nil {
 		return "", fmt.Errorf("Failed locating a device for filesystem UUID %q: %w", uuid, err)
 	}
 
-	if uuid == "" {
-		return "", fmt.Errorf("Failed locating a device for filesystem UUID %q", uuid)
-	}
-
-	return strings.TrimSpace(uuid), nil
+	return devPath, nil
 }
