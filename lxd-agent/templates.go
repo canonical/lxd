@@ -70,11 +70,6 @@ func templatesApply(path string) ([]string, error) {
 				if err != nil {
 					return fmt.Errorf("Failed creating template file: %w", err)
 				}
-
-				err = w.Chmod(0644)
-				if err != nil {
-					return fmt.Errorf("Failed setting template file permissions: %w", err)
-				}
 			}
 
 			defer func() { _ = w.Close() }()
