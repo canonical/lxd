@@ -3929,3 +3929,8 @@ The host-side bridge name is derived only from a LXD-generated link ID that is s
 ## `instance_nic_p2p_peer_hotplug`
 
 Peered `p2p` NICs can be added to and removed from running containers and virtual machines. The first endpoint stays isolated until the reciprocal device is added. Removing one endpoint disconnects the link and leaves the other interface in place.
+
+(extension-event-lifecycle-instance-shutdown-action)=
+## `event_lifecycle_instance_shutdown_action`
+
+The `instance-shutdown` lifecycle event now has an `action` field in its context, set to `reboot` if the instance is about to start again or `stop` if it stays stopped.
