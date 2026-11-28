@@ -1166,9 +1166,11 @@ func doProjectForceDelete(ctx context.Context, clientType request.ClientType, op
 				continue
 			}
 
-			// Skip instances and storage volumes not hosted on this node when a location is specified.
-			// These entities will be deleted by the node they are hosted on when a delete request is a cluster notification.
-			if (ref.EntityType == entity.TypeInstance || ref.EntityType == entity.TypeStorageVolume) && ref.Location != "" && ref.Location != s.ServerName {
+			// Skip storage volumes not hosted on this member when a location is specified.
+			// These are deleted by the member hosting them when it receives the cluster notification.
+			// Instances need no such check: instance URLs carry no location, and instanceDeleter forwards
+			// their deletion to the member hosting them.
+			if ref.EntityType == entity.TypeStorageVolume && ref.Location != "" && ref.Location != s.ServerName {
 				continue
 			}
 

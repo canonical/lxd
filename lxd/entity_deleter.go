@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/operations"
@@ -26,6 +28,25 @@ type instanceDeleter struct{}
 // Delete deletes an instance.
 func (d instanceDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
 	name := ref.Name()
+
+	client, err := cluster.ConnectIfInstanceIsRemote(ctx, s, ref.ProjectName, name, instancetype.Any)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to cluster member hosting instance %q: %w", name, err)
+	}
+
+	if client != nil {
+		remoteOp, err := client.DeleteInstance(name, true)
+		if err != nil {
+			return fmt.Errorf("Failed deleting instance %q on remote cluster member: %w", name, err)
+		}
+
+		err = remoteOp.WaitContext(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed deleting instance %q on remote cluster member: %w", name, err)
+		}
+
+		return nil
+	}
 
 	var opScheduler operations.OperationScheduler = func(s *state.State, args operations.OperationArgs) (*operations.Operation, error) {
 		return operations.ScheduleUserOperationFromOperation(s, op, args)
